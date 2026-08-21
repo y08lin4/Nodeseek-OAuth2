@@ -5,6 +5,11 @@
     <link rel="icon" href="data:," />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nodeseek OAuth2 授权服务</title>
+    <!-- 浏览器 polyfill：构建产物含 process.env 引用（沙箱 esbuild 不做 define 替换），
+         此处补 window.process 避免运行时 ReferenceError；正常构建环境也会被 vite define 覆盖，此脚本无害 -->
+    <script>
+      window.process = { env: { NODE_ENV: 'production' }, binding: function () {} };
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -3,11 +3,29 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    image: ghcr.io/y08lin4/nodeseek-oauth2:latest
+    container_name: nsauth2
+    expose:
+      - "8080"
+    # 仅本机回环暴露（供调试/健康检查），公网流量走 nginx
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     env_file: .env
     environment:
       - PORT=8080
     volumes:
       - ./data:/app/data
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: nsauth2-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - ns-oauth2
     restart: unless-stopped

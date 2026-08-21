@@ -1,0 +1,13 @@
+# NSAuth2 反向代理（Caddy）示例
+# 用法：改域名后与 docker-compose.yml 一起部署（compose 已挂载本文件）
+#
+# 说明：
+# - tls internal = Caddy 自签证书。配合 Cloudflare 代理（橙云）时，
+#   CF 面板 SSL 模式选「Full」（接受自签；Full Strict 需要受信证书）。
+# - 不走 CF 直连时，删掉 tls internal 让 Caddy 自动申请 Let's Encrypt 证书即可。
+# - Caddy 自动透传 X-Forwarded-For / X-Forwarded-Proto（服务端安全头与限流依赖）。
+
+nodeseek-oauth.ailinyu.de, nodeseek-ouath.ailinyu.de {
+	tls internal
+	reverse_proxy nsauth2:8080
+}
