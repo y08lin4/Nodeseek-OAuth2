@@ -21,7 +21,8 @@ FROM alpine:3.20
 RUN adduser -D -H -u 10001 app
 WORKDIR /app
 COPY --from=server-build /out/ns-oauth2-server /app/ns-oauth2-server
-COPY --from=web-build /web/dist /app/web/dist
+# 前端放默认静态目录 ../web/dist（相对 /app，即 /web/dist），与 NS_WEB_DIST 默认值一致
+COPY --from=web-build /web/dist /web/dist
 USER app
 EXPOSE 8080
 VOLUME ["/app/data"]
