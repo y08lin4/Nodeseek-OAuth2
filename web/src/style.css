@@ -458,9 +458,9 @@ body {
 }
 
 .portal-title {
-  font-size: 28px;
+  font-size: 36px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   color: var(--ns-text);
 }
 
