@@ -56,7 +56,7 @@ func TestDecodePjwtPayload(t *testing.T) {
 	}
 }
 
-// TestParsePjwt 校验从 Cookie 串提取 pjwt（含完整 JWT 与裸 payload 两种）。
+// TestParsePjwt 校验从 Cookie 串提取 pjwt（含 3 段 JWT、NS 实际 2 段格式与裸 payload 三种）。
 func TestParsePjwt(t *testing.T) {
 	// 完整 JWT（header.payload.signature）。
 	id, name, err := parsePjwt("pjwt=eyJhbGciOiJub25lIn0.eyJpZCI6MzczODQsIm5hbWUiOiLokKfngo4iLCJ0cyI6MTc4NjYxOTM4M30.sig")
@@ -65,6 +65,14 @@ func TestParsePjwt(t *testing.T) {
 	}
 	if id != "37384" || name != "萧炎" {
 		t.Fatalf("unexpected: %q / %q", id, name)
+	}
+	// NS 实际 2 段格式（payload.signature）——真实 Cookie 样例，回归：payload 必须取倒数第二段。
+	id2, name2, err := parsePjwt("pjwt=eyJpZCI6MzczODQsIm5hbWUiOiLokKfngo4iLCJ0cyI6MTc4NjYxOTM4M30.0TPcLa3TF6cLVFzwVuqxGS5js7p6p8k3ixsLzTcGxLY")
+	if err != nil {
+		t.Fatalf("parsePjwt(2seg) error: %v", err)
+	}
+	if id2 != "37384" || name2 != "萧炎" {
+		t.Fatalf("unexpected 2seg: %q / %q", id2, name2)
 	}
 	// 缺少 pjwt → 错误。
 	if _, _, err := parsePjwt("other=1"); err == nil {

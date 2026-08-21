@@ -230,7 +230,9 @@ func parseWhoamiName(body []byte) (string, error) {
 	return resp.Detail.MemberName, nil
 }
 
-// parsePjwt 从 Cookie 串提取 pjwt（JWT），取第二段 payload 解码 {id,name}。
+// parsePjwt 从 Cookie 串提取 pjwt（JWT），取 payload 段解码 {id,name}。
+// 兼容 NS 实际两种格式：2 段（payload.signature）与 3 段（header.payload.signature）——
+// payload 恒为倒数第二段（segs[len(segs)-2]）。
 func parsePjwt(cookie string) (id, name string, err error) {
 	token := ""
 	for _, part := range strings.Split(cookie, ";") {
@@ -248,7 +250,7 @@ func parsePjwt(cookie string) (id, name string, err error) {
 		// 直接是 payload 段（无 header/signature）。
 		return decodePjwtPayload(token)
 	}
-	return decodePjwtPayload(segs[1])
+	return decodePjwtPayload(segs[len(segs)-2])
 }
 
 // decodePjwtPayload base64url 解码 pjwt 载荷段，取 {id,name}。
