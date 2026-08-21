@@ -161,7 +161,7 @@ async function handleLogout() {
 }
 
 .admin-topbar-inner {
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 10px 16px;
   display: flex;
@@ -189,7 +189,7 @@ async function handleLogout() {
 .admin-body {
   flex: 1;
   display: flex;
-  max-width: 1420px;
+  max-width: 1540px;
   width: 100%;
   margin: 0 auto;
 }
@@ -244,7 +244,7 @@ async function handleLogout() {
 .admin-content {
   flex: 1;
   min-width: 0;
-  max-width: 1200px;
+  max-width: 1320px;
   padding: 24px 20px 48px;
 }
 
