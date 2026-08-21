@@ -16,6 +16,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -87,6 +89,9 @@ func NewRouter(cfg *config.Config, st *store.Store, ns *nodeseek.Client, key [32
 	mux.HandleFunc("POST /api/admin/test-mail", a.handleAdminTestMail)
 	mux.HandleFunc("GET /api/admin/reviews", a.handleAdminReviews)
 	mux.HandleFunc("POST /api/admin/review", a.handleAdminReview)
+	mux.HandleFunc("GET /api/admin/clients", a.handleAdminClients)
+	mux.HandleFunc("GET /api/admin/stats", a.handleAdminStats)
+	mux.HandleFunc("GET /api/admin/audit", a.handleAdminAudit)
 	mux.HandleFunc("GET /healthz", a.handleHealthz)
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", a.handleWellKnown)
 	mux.HandleFunc("/", a.handleStatic)
@@ -282,10 +287,11 @@ func clientAuthJSON(c store.Client) map[string]any {
 		"icon_url":      c.IconURL,
 		"min_rank":      c.MinRank,
 		"status":        c.Status,
+		"disabled":      c.Disabled,
 	}
 }
 
-// clientListJSON 应用列表的 client 字段（无 secret，含 status / stats）。
+// clientListJSON 应用列表的 client 字段（无 secret，含 status / stats / disabled）。
 func clientListJSON(c store.Client) map[string]any {
 	return map[string]any{
 		"client_id":     c.ClientID,
@@ -298,12 +304,13 @@ func clientListJSON(c store.Client) map[string]any {
 		"min_rank":      c.MinRank,
 		"token_ttl":     c.TokenTTL,
 		"status":        c.Status,
+		"disabled":      c.Disabled,
 		"stats":         clientStatsJSON(c.Stats),
 		"created_at":    c.CreatedAt,
 	}
 }
 
-// clientOwnerJSON PATCH 后返回的完整 client 字段（无 secret，含 status / stats / token_ttl）。
+// clientOwnerJSON PATCH 后返回的完整 client 字段（无 secret，含 status / stats / token_ttl / disabled）。
 func clientOwnerJSON(c store.Client) map[string]any {
 	return map[string]any{
 		"client_id":     c.ClientID,
@@ -316,6 +323,7 @@ func clientOwnerJSON(c store.Client) map[string]any {
 		"min_rank":      c.MinRank,
 		"token_ttl":     c.TokenTTL,
 		"status":        c.Status,
+		"disabled":      c.Disabled,
 		"stats":         clientStatsJSON(c.Stats),
 		"created_at":    c.CreatedAt,
 	}
@@ -370,6 +378,18 @@ func clientStatusError(status string) string {
 		return "应用删除申请处理中"
 	}
 	return ""
+}
+
+// clientUsableError 返回应用「不可用」对应的 403 文案；可用返回空串（放行）。
+// disabled 优先（fail-closed），其次沿用 status 拦截，与现有 paused 等处理保持一致。
+func clientUsableError(c *store.Client) string {
+	if c == nil {
+		return "未知的应用"
+	}
+	if c.Disabled {
+		return "应用已被管理端禁用"
+	}
+	return clientStatusError(c.Status)
 }
 
 // bumpStats 更新应用授权统计：跨日清零今日计数，再按成功/失败累加。
@@ -756,7 +776,7 @@ func (a *API) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "未知的 client_id")
 		return
 	}
-	if msg := clientStatusError(client.Status); msg != "" {
+	if msg := clientUsableError(client); msg != "" {
 		writeError(w, http.StatusForbidden, msg)
 		return
 	}
@@ -811,7 +831,7 @@ func (a *API) handleDecision(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "未知的 client_id")
 		return
 	}
-	if msg := clientStatusError(client.Status); msg != "" {
+	if msg := clientUsableError(client); msg != "" {
 		a.clientAuthFail(req.ClientID)
 		writeError(w, http.StatusForbidden, msg)
 		return
@@ -895,7 +915,7 @@ func (a *API) handleGetClient(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "客户端不存在")
 		return
 	}
-	if msg := clientStatusError(client.Status); msg != "" {
+	if msg := clientUsableError(client); msg != "" {
 		writeError(w, http.StatusForbidden, msg)
 		return
 	}
@@ -1319,6 +1339,7 @@ func (a *API) handleClientPatch(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		TokenTTL *int    `json:"token_ttl"`
 		Status   *string `json:"status"`
+		Disabled *bool   `json:"disabled"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "请求体格式错误")
@@ -1340,6 +1361,9 @@ func (a *API) handleClientPatch(w http.ResponseWriter, r *http.Request) {
 		if req.Status != nil {
 			c.Status = *req.Status
 		}
+		if req.Disabled != nil {
+			c.Disabled = *req.Disabled
+		}
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "更新应用失败")
@@ -1349,7 +1373,7 @@ func (a *API) handleClientPatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "客户端不存在")
 		return
 	}
-	a.audit.Eventf("client.patch", remoteIP(r), "", clientID, "")
+	a.audit.Eventf("client.patch", remoteIP(r), "", clientID, fmt.Sprintf("disabled=%v", updated.Disabled))
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
@@ -1440,6 +1464,8 @@ func (a *API) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	acctList := []map[string]any{}
+	cookieSet := false
+	var cookieUpdatedAt string // 已设置 Cookie 账号中最近更新的 updated_at
 	for _, ac := range accounts {
 		acctList = append(acctList, map[string]any{
 			"account_id":   ac.AccountID,
@@ -1450,6 +1476,22 @@ func (a *API) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 			"last_error":   ac.LastError,
 			"fail_count":   ac.FailCount,
 		})
+		if ac.CookieEncrypted != "" {
+			cookieSet = true
+			if ac.UpdatedAt > cookieUpdatedAt {
+				cookieUpdatedAt = ac.UpdatedAt
+			}
+		}
+	}
+	// cookie.age_seconds：now-updated_at 秒（RFC3339 字符串对比，同格式可字典序取最大）。
+	cookieAgeSeconds := 0
+	if cookieUpdatedAt != "" {
+		if t, err := time.Parse(time.RFC3339, cookieUpdatedAt); err == nil {
+			age := int(time.Since(t).Seconds())
+			if age > 0 {
+				cookieAgeSeconds = age
+			}
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
@@ -1457,11 +1499,17 @@ func (a *API) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 			"count": len(accounts),
 			"list":  acctList,
 		},
+		"cookie": map[string]any{
+			"set":          cookieSet,
+			"updated_at":   cookieUpdatedAt,
+			"age_seconds":  cookieAgeSeconds,
+		},
 		"mock_mode": a.cfg.MockMode,
 		"mail": map[string]any{
-			"configured":   a.mail.Configured(),
-			"report_time":  a.cfg.ReportTime,
-			"last_test_at": a.lastTestAtString(),
+			"configured":          a.mail.Configured(),
+			"report_time":         a.cfg.ReportTime,
+			"last_test_at":        a.lastTestAtString(),
+			"review_email_notify": a.cfg.ReviewEmailNotify,
 		},
 	})
 }
@@ -1488,6 +1536,72 @@ func (a *API) handleAdminTestMail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": "测试邮件已发送",
+	})
+}
+
+// handleAdminClients GET /api/admin/clients（X-Admin-Token）列出全部应用（不限 owner）。
+func (a *API) handleAdminClients(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	cs, err := a.store.ListClients()
+	if err != nil || cs == nil {
+		writeError(w, http.StatusInternalServerError, "读取应用列表失败")
+		return
+	}
+	// 按 created_at 倒序（最新在前）。
+	sort.SliceStable(cs, func(i, j int) bool { return cs[i].CreatedAt > cs[j].CreatedAt })
+	clients := make([]map[string]any, 0, len(cs))
+	for i := range cs {
+		clients = append(clients, clientListJSON(cs[i]))
+	}
+	a.audit.Eventf("admin.clients.view", remoteIP(r), "", "", fmt.Sprintf("list=%d", len(clients)))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"clients": clients,
+	})
+}
+
+// handleAdminStats GET /api/admin/stats（X-Admin-Token）返回进程内计数快照与 Reset 时间。
+func (a *API) handleAdminStats(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	snap := a.stats.Snapshot()
+	a.audit.Eventf("admin.stats.view", remoteIP(r), "", "", "")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"stats": map[string]any{
+			"verifies":     snap.Verifies,
+			"login_ok":     snap.LoginsOK,
+			"login_fail":   snap.LoginsFail,
+			"gate_block":   snap.GateBlocks,
+			"cookie_alert": snap.CookieAlerts,
+			"reset_at":     a.stats.SnapshotResetAt().UTC().Format(time.RFC3339),
+		},
+	})
+}
+
+// handleAdminAudit GET /api/admin/audit?limit=50（X-Admin-Token）返回最近审计事件。
+func (a *API) handleAdminAudit(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	limit := 50
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 1 && n <= 200 {
+			limit = n
+		}
+	}
+	events, err := a.audit.ReadRecent(limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取审计日志失败")
+		return
+	}
+	a.audit.Eventf("admin.audit.view", remoteIP(r), "", "", fmt.Sprintf("limit=%d returned=%d", limit, len(events)))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"events":  events,
 	})
 }
 

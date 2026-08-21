@@ -9,12 +9,14 @@ import { computed, h, onMounted, ref } from 'vue'
 import {
   NCard,
   NInput,
+  NInputNumber,
   NSelect,
   NButton,
   NTag,
   NAlert,
   NEmpty,
   NSpin,
+  NTable,
   useMessage,
   useDialog,
 } from 'naive-ui'
@@ -28,11 +30,20 @@ import {
   addAccount,
   patchAccount,
   deleteAccount,
+  listAdminClients,
+  getAdminStats,
+  listAudit,
+  patchAdminClient,
+  deleteAdminClient,
   ApiError,
   type AdminStatus,
   type ReviewItem,
   type ReviewType,
   type SysAccount,
+  type AdminClient,
+  type AdminStats,
+  type AuditEvent,
+  type ClientStatus,
 } from '../api'
 
 const message = useMessage()
@@ -62,6 +73,21 @@ const newAccountName = ref('')
 // Cookie 更新表单的目标账号：'' = 自动识别（服务端探测归属；AUTO_DETECT=1 时忽略手动选择）
 const cookieAccountId = ref('')
 
+// —— 应用管理（GET /api/admin/clients + PATCH/DELETE /api/client/{id}）——
+const clients = ref<AdminClient[]>([])
+const clientsLoading = ref(false)
+const clientActingId = ref('') // 正在操作（暂停/恢复/token_ttl/删除）的 client_id
+const ttlInputs = ref<Record<string, string>>({}) // client_id -> token_ttl（分钟，输入文本）
+
+// —— 统计面板（GET /api/admin/stats）——
+const stats = ref<AdminStats | null>(null)
+const statsLoading = ref(false)
+
+// —— 审计日志（GET /api/admin/audit）——
+const events = ref<AuditEvent[]>([])
+const auditLoading = ref(false)
+const auditLimit = ref<number | null>(50)
+
 const hasToken = computed(() => token.value.trim().length > 0)
 
 // 审核类型徽章映射（NTag type 配色）
@@ -78,6 +104,30 @@ function reviewTypeText(t: ReviewType): string {
 
 function reviewTypeClass(t: ReviewType): 'default' | 'info' | 'success' | 'warning' | 'error' {
   return reviewTypeMeta[t]?.type ?? 'info'
+}
+
+// 应用状态徽章映射（ClientStatus → 文案 + NTag type 配色）
+const clientStatusMeta: Record<ClientStatus, { text: string; type: 'info' | 'success' | 'warning' | 'error' }> = {
+  pending_review: { text: '审核中', type: 'info' },
+  approved: { text: '已通过', type: 'success' },
+  rejected: { text: '未通过', type: 'error' },
+  paused: { text: '已暂停', type: 'warning' },
+  pause_request: { text: '暂停申请中', type: 'warning' },
+  resume_request: { text: '恢复申请中', type: 'info' },
+  delete_request: { text: '删除申请中', type: 'error' },
+}
+
+function clientStatusText(s: ClientStatus): string {
+  return clientStatusMeta[s]?.text ?? s
+}
+
+function clientStatusClass(s: ClientStatus): 'info' | 'success' | 'warning' | 'error' {
+  return clientStatusMeta[s]?.type ?? 'info'
+}
+
+// token_ttl（秒）转分钟（整数向上收尾更贴近配置语义）
+function ttlToMinutes(sec: number): number {
+  return Math.round(sec / 60)
 }
 
 // Cookie 更新表单的目标账号下拉选项（'' = 自动识别）
@@ -102,6 +152,9 @@ function saveToken() {
   loadStatus()
   loadReviews()
   loadAccounts()
+  loadClients()
+  loadStats()
+  loadAudit()
 }
 
 function clearToken() {
@@ -110,6 +163,10 @@ function clearToken() {
   status.value = null
   reviews.value = []
   accounts.value = []
+  clients.value = []
+  stats.value = null
+  events.value = []
+  ttlInputs.value = {}
   cookieAccountId.value = ''
 }
 
@@ -371,11 +428,169 @@ function handleDeleteAccount(account: SysAccount) {
   })
 }
 
+// —— 应用管理（GET /api/admin/clients）——
+async function loadClients() {
+  if (!hasToken.value) return
+  clientsLoading.value = true
+  try {
+    const resp = await listAdminClients(token.value.trim())
+    clients.value = resp.clients
+    // 预填每个应用的 token_ttl（分钟）到输入框
+    for (const c of resp.clients) {
+      if (ttlInputs.value[c.client_id] === undefined) {
+        ttlInputs.value[c.client_id] = String(ttlToMinutes(c.token_ttl))
+      }
+    }
+  } catch (e) {
+    message.error(e instanceof ApiError ? e.message : '获取应用列表失败')
+  } finally {
+    clientsLoading.value = false
+  }
+}
+
+// 管理端暂停 / 恢复（PATCH status）
+async function setClientStatus(client: AdminClient, status: ClientStatus) {
+  clientActingId.value = client.client_id
+  try {
+    await patchAdminClient(client.client_id, { status }, token.value.trim())
+    message.success(status === 'paused' ? '已暂停' : '已恢复')
+    await loadClients()
+  } catch (e) {
+    message.error(e instanceof ApiError ? e.message : '操作失败')
+  } finally {
+    clientActingId.value = ''
+  }
+}
+
+// 暂停（dialog 确认）
+function handlePause(client: AdminClient) {
+  dialog.warning({
+    title: '暂停应用',
+    content: `确认暂停「${client.client_name}」？暂停后该应用无法发起授权。`,
+    positiveText: '暂停',
+    negativeText: '取消',
+    onPositiveClick: () => setClientStatus(client, 'paused'),
+  })
+}
+
+// 恢复（dialog 确认）
+function handleResume(client: AdminClient) {
+  dialog.warning({
+    title: '恢复应用',
+    content: `确认恢复「${client.client_name}」？`,
+    positiveText: '恢复',
+    negativeText: '取消',
+    onPositiveClick: () => setClientStatus(client, 'approved'),
+  })
+}
+
+// 调整 token_ttl（PATCH token_ttl，输入为分钟）
+async function handleSetTokenTtl(client: AdminClient) {
+  const mins = Number(ttlInputs.value[client.client_id])
+  if (!Number.isFinite(mins) || mins <= 0) {
+    message.error('请输入有效的分钟数（正整数）')
+    return
+  }
+  const seconds = Math.round(mins * 60)
+  clientActingId.value = client.client_id
+  try {
+    await patchAdminClient(client.client_id, { token_ttl: seconds }, token.value.trim())
+    message.success(`token 有效期已调整为 ${mins} 分钟`)
+    await loadClients()
+  } catch (e) {
+    message.error(e instanceof ApiError ? e.message : '调整失败')
+  } finally {
+    clientActingId.value = ''
+  }
+}
+
+// 强制删除（dialog 确认）
+function handleForceDelete(client: AdminClient) {
+  dialog.warning({
+    title: '强制删除应用',
+    content: `确认强制删除应用「${client.client_name}」（${client.client_id}）？\n该操作不可撤销，将删除应用及其授权记录。`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      clientActingId.value = client.client_id
+      try {
+        await deleteAdminClient(client.client_id, token.value.trim())
+        message.success('应用已删除')
+        await loadClients()
+      } catch (e) {
+        message.error(e instanceof ApiError ? e.message : '删除失败')
+      } finally {
+        clientActingId.value = ''
+      }
+    },
+  })
+}
+
+// —— 统计面板（GET /api/admin/stats）——
+async function loadStats() {
+  if (!hasToken.value) return
+  statsLoading.value = true
+  try {
+    const resp = await getAdminStats(token.value.trim())
+    stats.value = resp.stats
+  } catch (e) {
+    stats.value = null
+    message.error(e instanceof ApiError ? e.message : '获取统计失败')
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+// 统计数字（tab 化对齐）
+function statItemLabel(): Array<{ key: keyof AdminStats; label: string }> {
+  return [
+    { key: 'verifies', label: '验证码生成' },
+    { key: 'login_ok', label: '登录成功' },
+    { key: 'login_fail', label: '登录失败' },
+    { key: 'gate_block', label: '门槛拦截' },
+    { key: 'cookie_alert', label: 'Cookie 告警' },
+  ]
+}
+
+// —— 审计日志（GET /api/admin/audit）——
+async function loadAudit() {
+  if (!hasToken.value) return
+  auditLoading.value = true
+  try {
+    // limit：输入可能为字符串，归一化为 1-200 的整数（默认 50）
+    const raw = Number(auditLimit.value)
+    const limit = Number.isFinite(raw) ? Math.min(200, Math.max(1, Math.round(raw))) : 50
+    const resp = await listAudit(token.value.trim(), limit)
+    events.value = resp.events
+  } catch (e) {
+    events.value = []
+    message.error(e instanceof ApiError ? e.message : '获取审计日志失败')
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+// 审计时间戳本地化
+function formatAuditTime(ts: string): string {
+  const d = new Date(ts)
+  return Number.isNaN(d.getTime()) ? (ts || '—') : d.toLocaleString('zh-CN')
+}
+
+// reset_at 本地化显示（今日统计起始点）
+const statsResetText = computed(() => {
+  const t = stats.value?.reset_at
+  if (!t) return '—'
+  return formatTime(t)
+})
+
 onMounted(() => {
   if (hasToken.value) {
     loadStatus()
     loadReviews()
     loadAccounts()
+    loadClients()
+    loadStats()
+    loadAudit()
   }
 })
 </script>
@@ -468,8 +683,17 @@ onMounted(() => {
       <div class="ns-form-text ns-mt-1">
         用于验证 SMTP 邮件发送是否可用（未配置时提示 SMTP 未配置）。
       </div>
-      <!-- 新提交邮件通知状态：开关由服务端环境变量 NS_REVIEW_EMAIL_NOTIFY 控制（未暴露给前端，仅提示） -->
-      <div class="ns-form-text ns-mt-1">新应用提交邮件通知：由服务端 NS_REVIEW_EMAIL_NOTIFY 控制</div>
+      <!-- 新提交邮件通知状态：由服务端环境变量 NS_REVIEW_EMAIL_NOTIFY 控制（重启生效） -->
+      <div class="detail-row">
+        <span class="detail-label">新应用提交邮件通知</span>
+        <span class="detail-value">
+          <n-tag v-if="status.mail?.review_email_notify === true" type="success" size="small" round>
+            已开启
+          </n-tag>
+          <n-tag v-else type="default" size="small" round>未开启</n-tag>
+        </span>
+      </div>
+      <div class="ns-form-text ns-mt-1">由服务端环境变量 NS_REVIEW_EMAIL_NOTIFY 控制，重启生效。</div>
     </div>
 
     <!-- 审核队列（Admin Token 已填时显示） -->
@@ -601,6 +825,160 @@ onMounted(() => {
           </template>
         </n-form-item>
       </div>
+    </div>
+
+    <!-- 应用管理（Admin Token 已填时显示） -->
+    <div v-if="hasToken" class="ns-mt-4">
+      <h2 class="ns-h6 ns-mb-3">应用管理</h2>
+      <n-spin :show="clientsLoading">
+        <n-empty
+          v-if="!clientsLoading && clients.length === 0"
+          description="暂无应用"
+          size="small"
+          class="ns-py-3"
+        />
+        <div v-else class="review-list">
+          <n-card v-for="c in clients" :key="c.client_id" size="small" class="review-item">
+            <div class="ns-flex ns-align-center ns-gap-2 ns-mb-1 ns-flex-wrap">
+              <n-tag :type="clientStatusClass(c.status)" size="small" round>
+                {{ clientStatusText(c.status) }}
+              </n-tag>
+              <span class="review-name">{{ c.client_name }}</span>
+              <code class="review-client-id">{{ c.client_id }}</code>
+            </div>
+            <div class="ns-text-muted ns-small">
+              owner: {{ c.owner_user_id }} · 等级门槛：{{ c.min_rank > 0 ? `≥ ${c.min_rank}` : '不限' }}
+              · token 有效期：{{ ttlToMinutes(c.token_ttl) }} 分钟
+            </div>
+            <div class="ns-text-muted ns-small">
+              今日 成功 {{ c.stats.auth_ok_today }} / 失败 {{ c.stats.auth_fail_today }} ｜ 累计 成功
+              {{ c.stats.auth_ok_total }} / 失败 {{ c.stats.auth_fail_total }}
+            </div>
+            <div v-if="c.description" class="review-detail">{{ c.description }}</div>
+            <div class="review-actions ns-flex ns-align-center ns-gap-2 ns-flex-wrap">
+              <n-button
+                v-if="c.status === 'approved'"
+                size="small"
+                type="warning"
+                :disabled="!!clientActingId"
+                :loading="clientActingId === c.client_id"
+                @click="handlePause(c)"
+              >
+                暂停
+              </n-button>
+              <n-button
+                v-if="c.status === 'paused'"
+                size="small"
+                type="success"
+                :disabled="!!clientActingId"
+                :loading="clientActingId === c.client_id"
+                @click="handleResume(c)"
+              >
+                恢复
+              </n-button>
+              <n-input
+                v-model:value="ttlInputs[c.client_id]"
+                size="small"
+                style="width: 90px"
+                placeholder="分钟"
+                :input-props="{ inputmode: 'numeric' }"
+              />
+              <n-button
+                size="small"
+                :disabled="!!clientActingId"
+                :loading="clientActingId === c.client_id"
+                @click="handleSetTokenTtl(c)"
+              >
+                调整 token 有效期
+              </n-button>
+              <n-button
+                size="small"
+                type="error"
+                :disabled="!!clientActingId"
+                :loading="clientActingId === c.client_id"
+                @click="handleForceDelete(c)"
+              >
+                强制删除
+              </n-button>
+            </div>
+          </n-card>
+        </div>
+      </n-spin>
+    </div>
+
+    <!-- 统计面板（Admin Token 已填时显示） -->
+    <div v-if="hasToken" class="ns-mt-4">
+      <h2 class="ns-h6 ns-mb-3">统计面板</h2>
+      <div class="ns-flex ns-align-center ns-gap-2 ns-mb-2 ns-flex-wrap">
+        <n-button size="small" :disabled="!hasToken" :loading="statsLoading" @click="loadStats">
+          刷新
+        </n-button>
+        <span v-if="stats" class="ns-text-muted ns-small">统计自 {{ statsResetText }} 起</span>
+      </div>
+      <n-spin :show="statsLoading">
+        <n-empty
+          v-if="!statsLoading && !stats"
+          description="暂无统计数据"
+          size="small"
+          class="ns-py-3"
+        />
+        <div v-else-if="stats" class="stats-grid">
+          <div v-for="s in statItemLabel()" :key="s.key" class="stat-item">
+            <div class="stat-value">{{ stats?.[s.key] ?? 0 }}</div>
+            <div class="stat-label">{{ s.label }}</div>
+          </div>
+        </div>
+      </n-spin>
+    </div>
+
+    <!-- 审计日志（Admin Token 已填时显示） -->
+    <div v-if="hasToken" class="ns-mt-4">
+      <div class="ns-flex ns-align-center ns-gap-2 ns-mt-4 ns-flex-wrap">
+        <h2 class="ns-h6 ns-mb-0">审计日志</h2>
+        <n-input-number
+          v-model:value="auditLimit"
+          size="small"
+          style="width: 110px"
+          placeholder="limit"
+          :min="1"
+          :max="200"
+        />
+        <n-button size="small" :disabled="!hasToken" :loading="auditLoading" @click="loadAudit">
+          刷新
+        </n-button>
+      </div>
+      <n-spin :show="auditLoading" class="ns-mt-2">
+        <n-empty
+          v-if="!auditLoading && events.length === 0"
+          description="暂无审计事件"
+          size="small"
+          class="ns-py-3"
+        />
+        <div v-else class="ns-mt-2">
+          <n-table :bordered="true" size="small" class="docs-table">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>事件</th>
+                <th>IP</th>
+                <th>user_id</th>
+                <th>client_id</th>
+                <th>详情</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ev, i) in events" :key="i">
+                <td class="audit-cell ts">{{ formatAuditTime(ev.ts) }}</td>
+                <td class="audit-cell"><code class="audit-event">{{ ev.event }}</code></td>
+                <td class="audit-cell ts">{{ ev.ip || '—' }}</td>
+                <td class="audit-cell ts">{{ ev.user_id || '—' }}</td>
+                <td class="audit-cell ts">{{ ev.client_id || '—' }}</td>
+                <td class="audit-cell">{{ ev.detail || '—' }}</td>
+              </tr>
+            </tbody>
+          </n-table>
+        </div>
+      </n-spin>
     </div>
 
     <!-- 更新 Cookie -->

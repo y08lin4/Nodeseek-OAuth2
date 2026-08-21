@@ -5,9 +5,11 @@ package audit
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -70,4 +72,48 @@ func (l *Logger) Log(ev Event) {
 // Eventf 便捷方法：Event 名 + IP + 用户 + 应用 + 详情。
 func (l *Logger) Eventf(name, ip, userID, clientID, detail string) {
 	l.Log(Event{Event: name, IP: ip, UserID: userID, ClientID: clientID, Detail: detail})
+}
+
+// ReadRecent 从 dataDir/audit.log 尾部读取最近 limit 行事件，按时间倒序（最新在前）返回。
+// 低流量场景直接 ReadFile 后按行切分取末尾即可。文件不存在返回空 slice。
+func (l *Logger) ReadRecent(limit int) ([]Event, error) {
+	if l == nil {
+		return []Event{}, nil
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	data, err := os.ReadFile(l.file.Name())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []Event{}, nil
+		}
+		return nil, err
+	}
+	// 按行切分（去掉行尾 \n / \r\n），跳过空行。
+	rawLines := strings.Split(string(data), "\n")
+	lines := make([]string, 0, len(rawLines))
+	for _, raw := range rawLines {
+		raw = strings.TrimSuffix(strings.TrimSuffix(raw, "\n"), "\r")
+		if raw == "" {
+			continue
+		}
+		lines = append(lines, raw)
+	}
+	if len(lines) > limit {
+		lines = lines[len(lines)-limit:]
+	}
+	events := make([]Event, 0, len(lines))
+	// 文件按时间顺序追加，取末尾后逆序即最新在前。
+	for i := len(lines) - 1; i >= 0; i-- {
+		var ev Event
+		if err := json.Unmarshal([]byte(lines[i]), &ev); err != nil {
+			// 解析失败的单行跳过，不阻塞整个读取。
+			continue
+		}
+		events = append(events, ev)
+	}
+	return events, nil
 }

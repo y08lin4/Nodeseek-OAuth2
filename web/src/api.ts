@@ -10,6 +10,8 @@ export interface AppConfig {
     message_url: string
     auth_account_id: string
     auth_account_username: string
+    /** 启用系统账号列表（与 /api/config 响应字段一致；私信核验可发送对象） */
+    accounts: { account_id: string; account_name: string; priority: number; enabled: boolean }[]
   }
   business: {
     min_client_creation_rank: number
@@ -199,6 +201,8 @@ export interface AdminMailStatus {
   configured: boolean
   report_time: string
   last_test_at: string
+  /** 新应用提交邮件通知开关（服务端 NS_REVIEW_EMAIL_NOTIFY，环境变量控制，重启生效） */
+  review_email_notify: boolean
 }
 
 /** GET /api/admin/status 成功响应 */
@@ -378,17 +382,6 @@ export function listClients(): Promise<ClientListResp> {
   return request<ClientListResp>('/api/client/list')
 }
 
-/** PATCH /api/client/{id}：禁用/启用应用、调整 token_ttl（需登录，owner） */
-export function patchClient(
-  clientId: string,
-  data: { disabled: boolean; token_ttl?: number },
-): Promise<PatchClientResp> {
-  return request<PatchClientResp>(`/api/client/${encodeURIComponent(clientId)}`, {
-    method: 'PATCH',
-    body: data,
-  })
-}
-
 /** DELETE /api/client/{id}：管理端强制删除应用（Header X-Admin-Token，应用方删除走 delete-request 审核） */
 export function deleteClient(clientId: string): Promise<LogoutResp> {
   return request<LogoutResp>(`/api/client/${encodeURIComponent(clientId)}`, {
@@ -552,6 +545,107 @@ export function patchAccount(
 /** DELETE /api/admin/accounts/{id}：删除系统账号（至少保留 1 个，否则 400） */
 export function deleteAccount(adminToken: string, accountId: string): Promise<LogoutResp> {
   return request<LogoutResp>(`/api/admin/accounts/${encodeURIComponent(accountId)}`, {
+    method: 'DELETE',
+    headers: { 'X-Admin-Token': adminToken },
+  })
+}
+
+// —— 管理端应用/统计/审计（/admin） ——
+
+/** GET /api/admin/clients 中的应用条目（含授权统计，无 secret） */
+export interface AdminClient {
+  client_id: string
+  client_name: string
+  owner_user_id: string
+  homepage_url: string
+  description: string
+  icon_url: string
+  redirect_uris: string[]
+  min_rank: number
+  /** access_token 有效期（秒） */
+  token_ttl: number
+  status: ClientStatus
+  /** 授权统计（今日/累计成功失败） */
+  stats: ClientStats
+  created_at: string
+}
+
+/** GET /api/admin/clients 成功响应 */
+export interface AdminClientsResp {
+  success: true
+  clients: AdminClient[]
+}
+
+/** GET /api/admin/stats 中的应用统计计数 */
+export interface AdminStats {
+  verifies: number
+  login_ok: number
+  login_fail: number
+  gate_block: number
+  cookie_alert: number
+  /** 本期统计起始时间（RFC3339） */
+  reset_at: string
+}
+
+/** GET /api/admin/stats 成功响应 */
+export interface AdminStatsResp {
+  success: true
+  stats: AdminStats
+}
+
+/** GET /api/admin/audit 中的审计事件 */
+export interface AuditEvent {
+  ts: string
+  event: string
+  ip: string
+  user_id: string
+  client_id: string
+  detail: string
+}
+
+/** GET /api/admin/audit 成功响应 */
+export interface AdminAuditResp {
+  success: true
+  events: AuditEvent[]
+}
+
+/** GET /api/admin/clients：全量应用列表（管理端，X-Admin-Token） */
+export function listAdminClients(adminToken: string): Promise<AdminClientsResp> {
+  return request<AdminClientsResp>('/api/admin/clients', {
+    headers: { 'X-Admin-Token': adminToken },
+  })
+}
+
+/** GET /api/admin/stats：应用统计计数（管理端，X-Admin-Token） */
+export function getAdminStats(adminToken: string): Promise<AdminStatsResp> {
+  return request<AdminStatsResp>('/api/admin/stats', {
+    headers: { 'X-Admin-Token': adminToken },
+  })
+}
+
+/** GET /api/admin/audit：审计日志（管理端，X-Admin-Token；limit 1-200，默认 50） */
+export function listAudit(adminToken: string, limit = 50): Promise<AdminAuditResp> {
+  return request<AdminAuditResp>(`/api/admin/audit?limit=${limit}`, {
+    headers: { 'X-Admin-Token': adminToken },
+  })
+}
+
+/** PATCH /api/client/{id}：管理端修改应用（暂停=status:paused / 恢复=status:approved / 调整 token_ttl；X-Admin-Token） */
+export function patchAdminClient(
+  clientId: string,
+  data: { disabled?: boolean; token_ttl?: number; status?: ClientStatus },
+  adminToken: string,
+): Promise<PatchClientResp> {
+  return request<PatchClientResp>(`/api/client/${encodeURIComponent(clientId)}`, {
+    method: 'PATCH',
+    headers: { 'X-Admin-Token': adminToken },
+    body: data,
+  })
+}
+
+/** DELETE /api/client/{id}：管理端强制删除应用（X-Admin-Token） */
+export function deleteAdminClient(clientId: string, adminToken: string): Promise<LogoutResp> {
+  return request<LogoutResp>(`/api/client/${encodeURIComponent(clientId)}`, {
     method: 'DELETE',
     headers: { 'X-Admin-Token': adminToken },
   })

@@ -27,6 +27,7 @@ type Client struct {
 	MinRank          int         `json:"min_rank"`
 	TokenTTL         int         `json:"token_ttl"`             // access_token 有效期（秒），默认 3600，范围 60-86400
 	Status           string      `json:"status"`                // approved|pending_review|rejected|paused|pause_request|resume_request|delete_request
+	Disabled         bool        `json:"disabled"`              // 管理端禁用标记（disabled=true 时应用不可用）
 	PrevStatus       string      `json:"prev_status,omitempty"` // delete_request 前的状态（用于 reject 回退）
 	Stats            ClientStats `json:"stats"`                 // 授权统计
 	Builtin          bool        `json:"builtin"`               // 内置应用（不可被 owner 暂停/删除）

@@ -5,6 +5,7 @@ import { onMounted, ref } from 'vue'
 import { NCard, NTag, NButton } from 'naive-ui'
 import { me } from '../api'
 import NSLogo from '../components/NSLogo.vue'
+import { ShieldCheck, Puzzle, UserRound } from 'lucide-vue-next'
 
 const loggedIn = ref(false)
 // 副标题标签
@@ -46,21 +47,21 @@ onMounted(async () => {
       <h2 class="portal-h2">三方角色</h2>
       <div class="role-grid">
         <n-card>
-          <div class="role-icon" aria-hidden="true">🔐</div>
+          <div class="role-icon" aria-hidden="true"><ShieldCheck :size="20" :stroke-width="1.8" /></div>
           <h3>授权服务方</h3>
           <p class="ns-mb-0 ns-text-muted ns-small">
             维护系统账号，通过私信验证码确认账号归属，为第三方应用签发授权与令牌。
           </p>
         </n-card>
         <n-card>
-          <div class="role-icon" aria-hidden="true">🧩</div>
+          <div class="role-icon" aria-hidden="true"><Puzzle :size="20" :stroke-width="1.8" /></div>
           <h3>接入的应用</h3>
           <p class="ns-mb-0 ns-text-muted ns-small">
             提交应用申请，审核通过后走标准 OAuth2 授权码流程，换取一次性访问令牌。
           </p>
         </n-card>
         <n-card>
-          <div class="role-icon" aria-hidden="true">👤</div>
+          <div class="role-icon" aria-hidden="true"><UserRound :size="20" :stroke-width="1.8" /></div>
           <h3>用户</h3>
           <p class="ns-mb-0 ns-text-muted ns-small">
             用 NS 数字 ID 登录，验证码经私信确认，授权状态随时可查、可撤销。

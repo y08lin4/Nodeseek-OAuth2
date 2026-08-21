@@ -7,6 +7,7 @@ import GrantsView from './views/GrantsView.vue'
 import DocsView from './views/DocsView.vue'
 import DashboardView from './views/DashboardView.vue'
 import AdminView from './views/AdminView.vue'
+import NotFoundView from './views/NotFoundView.vue'
 
 // 路由配置（history 模式，SPA）
 const router = createRouter({
@@ -27,6 +28,8 @@ const router = createRouter({
     { path: '/grants', name: 'grants', component: GrantsView },
     // 管理页：Admin Token 保存在 localStorage
     { path: '/admin', name: 'admin', component: AdminView },
+    // 404 兜底：未知路径渲染 NotFoundView
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
   ],
 })
 
