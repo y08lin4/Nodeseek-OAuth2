@@ -262,11 +262,11 @@ onMounted(async () => {
     <p class="ns-card-sub">注册并管理接入 Nodeseek OAuth2 的第三方应用</p>
 
     <!-- 创建门槛提示 -->
-    <n-alert v-if="creationGateText" type="info" class="mb-3">{{ creationGateText }}</n-alert>
+    <n-alert v-if="creationGateText" type="info" class="ns-mb-3">{{ creationGateText }}</n-alert>
 
     <!-- 注册成功：一次性凭据展示 -->
-    <n-card v-if="credentials" size="small" class="mt-3 mb-4">
-      <n-alert type="warning" :show-icon="true" class="mb-3">
+    <n-card v-if="credentials" size="small" class="ns-mt-3 ns-mb-4">
+      <n-alert type="warning" :show-icon="true" class="ns-mb-3">
         ⚠ client_secret 仅显示一次，请立即保存，关闭后无法再次查看
       </n-alert>
       <div class="credential-row">
@@ -283,13 +283,13 @@ onMounted(async () => {
           复制
         </n-button>
       </div>
-      <n-button text size="small" class="mt-2" @click="credentials = null">
+      <n-button text size="small" class="ns-mt-2" @click="credentials = null">
         我已保存，关闭提示
       </n-button>
     </n-card>
 
     <!-- 注册表单 -->
-    <h2 class="h6 mt-2 mb-3">注册新应用</h2>
+    <h2 class="ns-h6 ns-mt-2 ns-mb-3">注册新应用</h2>
     <n-form>
       <n-form-item label="应用名称">
         <n-input v-model:value="name" placeholder="如 My App" />
@@ -332,7 +332,7 @@ onMounted(async () => {
     </n-form>
 
     <!-- 我的应用列表 -->
-    <h2 class="h6 mt-5 mb-3">我的应用</h2>
+    <h2 class="ns-h6 ns-mt-5 ns-mb-3">我的应用</h2>
     <n-spin :show="loading">
       <n-empty
         v-if="!loading && clients.length === 0"
@@ -346,10 +346,10 @@ onMounted(async () => {
           class="review-item"
           :class="{ 'client-card-disabled': c.status !== 'approved' }"
         >
-          <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="ns-flex ns-align-center ns-gap-3 ns-mb-2">
             <img v-if="c.icon_url" :src="c.icon_url" alt="应用图标" class="client-icon" />
             <div v-else class="client-icon client-icon-placeholder">A</div>
-            <div class="flex-grow-1">
+            <div class="ns-flex-grow-1">
               <div class="review-name">{{ c.client_name }}</div>
               <code class="review-client-id">{{ c.client_id }}</code>
             </div>
@@ -372,7 +372,7 @@ onMounted(async () => {
           <div class="detail-row">
             <span class="detail-label">回调地址</span>
             <span class="detail-value">
-              <span v-for="u in c.redirect_uris" :key="u" class="d-block">{{ u }}</span>
+              <span v-for="u in c.redirect_uris" :key="u" class="ns-d-block">{{ u }}</span>
             </span>
           </div>
           <div class="detail-row">

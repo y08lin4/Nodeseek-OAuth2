@@ -38,17 +38,17 @@ onMounted(async () => {
       <h2 class="portal-h2">三方角色</h2>
       <div class="role-grid">
         <n-card title="🔐 授权服务方">
-          <p class="mb-0 text-muted small">
+          <p class="ns-mb-0 ns-text-muted ns-small">
             维护系统账号，通过私信验证码确认账号归属，为第三方应用签发授权与令牌。
           </p>
         </n-card>
         <n-card title="🧩 接入的应用">
-          <p class="mb-0 text-muted small">
+          <p class="ns-mb-0 ns-text-muted ns-small">
             提交应用申请，审核通过后走标准 OAuth2 授权码流程，换取一次性访问令牌。
           </p>
         </n-card>
         <n-card title="👤 用户">
-          <p class="mb-0 text-muted small">
+          <p class="ns-mb-0 ns-text-muted ns-small">
             用 NS 数字 ID 登录，验证码经私信确认，授权状态随时可查、可撤销。
           </p>
         </n-card>
@@ -63,7 +63,7 @@ onMounted(async () => {
           <span class="flow-num">①</span>
           <div>
             <strong>输入 NS ID</strong>
-            <p class="mb-0 text-muted small">纯数字，取自个人主页 URL</p>
+            <p class="ns-mb-0 ns-text-muted ns-small">纯数字，取自个人主页 URL</p>
           </div>
         </div>
         <span class="flow-arrow">→</span>
@@ -71,7 +71,7 @@ onMounted(async () => {
           <span class="flow-num">②</span>
           <div>
             <strong>私信验证码</strong>
-            <p class="mb-0 text-muted small">发给任一系统账号</p>
+            <p class="ns-mb-0 ns-text-muted ns-small">发给任一系统账号</p>
           </div>
         </div>
         <span class="flow-arrow">→</span>
@@ -79,7 +79,7 @@ onMounted(async () => {
           <span class="flow-num">③</span>
           <div>
             <strong>确认登录</strong>
-            <p class="mb-0 text-muted small">服务端核验私信后完成</p>
+            <p class="ns-mb-0 ns-text-muted ns-small">服务端核验私信后完成</p>
           </div>
         </div>
       </div>

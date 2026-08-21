@@ -64,11 +64,11 @@ watch(() => route.fullPath, refreshMe)
             </div>
           </nav>
 
-          <main class="container py-5">
+          <main class="ns-main">
             <router-view />
           </main>
 
-          <footer class="app-footer text-center">
+          <footer class="app-footer ns-text-center">
             Nodeseek OAuth2 授权服务 · 私信验证码确认账号归属
           </footer>
         </div>

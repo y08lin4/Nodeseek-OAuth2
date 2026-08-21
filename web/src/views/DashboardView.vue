@@ -75,7 +75,7 @@ onMounted(async () => {
     </template>
 
     <!-- 用户 stats 卡片（登录流程缓存；无缓存显示占位） -->
-    <h2 class="h6 mt-2 mb-3">我的信息</h2>
+    <h2 class="ns-h6 ns-mt-2 ns-mb-3">我的信息</h2>
     <div v-if="userStats" class="stats-grid">
       <div class="stat-item">
         <div class="stat-value">{{ userStats.rank }}</div>
@@ -102,31 +102,31 @@ onMounted(async () => {
       v-else
       size="small"
       description="登录后更新（重新登录完成后即可查看等级/加入天数/鸡腿等）"
-      class="py-3"
+      class="ns-py-3"
     />
 
     <!-- 快捷入口 -->
-    <h2 class="h6 mt-4 mb-3">快捷入口</h2>
+    <h2 class="ns-h6 ns-mt-4 ns-mb-3">快捷入口</h2>
     <div class="role-grid">
       <n-card hoverable @click="router.push('/console')">
         <div class="role-icon">🧩</div>
         <h3>我的应用</h3>
-        <p class="mb-0 text-muted small">注册与管理第三方应用</p>
+        <p class="ns-mb-0 ns-text-muted ns-small">注册与管理第三方应用</p>
       </n-card>
       <n-card hoverable @click="router.push('/grants')">
         <div class="role-icon">🔑</div>
         <h3>我的授权</h3>
-        <p class="mb-0 text-muted small">查看与撤销授权</p>
+        <p class="ns-mb-0 ns-text-muted ns-small">查看与撤销授权</p>
       </n-card>
       <n-card hoverable @click="router.push('/docs')">
         <div class="role-icon">📖</div>
         <h3>接入文档</h3>
-        <p class="mb-0 text-muted small">第三方接入教程</p>
+        <p class="ns-mb-0 ns-text-muted ns-small">第三方接入教程</p>
       </n-card>
     </div>
 
     <!-- 我的应用统计摘要 -->
-    <h2 class="h6 mt-4 mb-3">我的应用统计</h2>
+    <h2 class="ns-h6 ns-mt-4 ns-mb-3">我的应用统计</h2>
     <n-spin :show="loading">
       <n-empty
         v-if="!loading && topClients.length === 0"
@@ -134,11 +134,11 @@ onMounted(async () => {
       />
       <div v-else class="review-list">
         <n-card v-for="c in topClients" :key="c.client_id" size="small" class="review-item">
-          <div class="d-flex justify-content-between align-items-center">
+          <div class="ns-flex ns-justify-between ns-align-center">
             <span class="review-name">{{ c.client_name }}</span>
             <code class="review-client-id">{{ c.client_id }}</code>
           </div>
-          <div class="text-muted small">{{ c.client_name }} · 今日成功 {{ c.stats.auth_ok_today }}</div>
+          <div class="ns-text-muted ns-small">{{ c.client_name }} · 今日成功 {{ c.stats.auth_ok_today }}</div>
         </n-card>
       </div>
     </n-spin>

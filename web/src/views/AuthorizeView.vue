@@ -158,17 +158,17 @@ async function submitDecision(approve: boolean) {
     </template>
     <p class="ns-card-sub">第三方应用请求使用你的 Nodeseek 账号登录</p>
 
-    <n-alert v-if="error" type="error" :show-icon="true" class="mb-3">{{ error }}</n-alert>
+    <n-alert v-if="error" type="error" :show-icon="true" class="ns-mb-3">{{ error }}</n-alert>
 
     <!-- 门槛未满足（403）：错误面板，不显示同意/拒绝按钮 -->
-    <div v-if="gateError" class="gate-error-panel mt-2">
+    <div v-if="gateError" class="gate-error-panel ns-mt-2">
       <div class="gate-error-icon" aria-hidden="true">⛔</div>
       <h2 class="gate-error-title">无法完成授权</h2>
       <p class="gate-error-msg">{{ gateError }}</p>
-      <p class="text-muted small mb-4">
+      <p class="ns-text-muted ns-small ns-mb-4">
         你的 NodeSeek 账号暂不满足该应用的授权门槛，可提升等级或加入时长后再试。
       </p>
-      <div class="d-flex gap-2 justify-content-center">
+      <div class="ns-flex ns-gap-2 ns-justify-center">
         <n-button to="/">返回首页</n-button>
         <n-button type="primary" to="/login">重新登录</n-button>
       </div>
@@ -176,9 +176,9 @@ async function submitDecision(approve: boolean) {
 
     <template v-else>
       <n-spin :show="loading">
-        <div v-if="!loading && info" class="mt-2">
+        <div v-if="!loading && info" class="ns-mt-2">
           <!-- 应用信息 -->
-          <div class="app-head d-flex align-items-center gap-3 mb-3">
+          <div class="app-head ns-flex ns-align-center ns-gap-3 ns-mb-3">
             <img
               v-if="info.client.icon_url"
               :src="info.client.icon_url"
@@ -193,15 +193,15 @@ async function submitDecision(approve: boolean) {
                 :href="info.client.homepage_url"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-muted small"
+                class="ns-text-muted ns-small"
               >
                 {{ info.client.homepage_url }}
               </a>
             </div>
           </div>
-          <p v-if="info.client.description" class="text-muted mb-3">{{ info.client.description }}</p>
+          <p v-if="info.client.description" class="ns-text-muted ns-mb-3">{{ info.client.description }}</p>
 
-          <n-alert type="info" class="mb-3">
+          <n-alert type="info" class="ns-mb-3">
             <strong>{{ info.client.client_name }}</strong> 请求获得你的 NodeSeek 账号授权。
             <template v-if="granted">授权已完成，正在跳转至应用…</template>
           </n-alert>
@@ -218,7 +218,7 @@ async function submitDecision(approve: boolean) {
           </div>
 
           <!-- 当前用户 stats -->
-          <div v-if="info.stats" class="stats-grid mt-3">
+          <div v-if="info.stats" class="stats-grid ns-mt-3">
             <div class="stat-item">
               <div class="stat-value">{{ info.stats.rank }}</div>
               <div class="stat-label">等级</div>
@@ -258,7 +258,7 @@ async function submitDecision(approve: boolean) {
           <div class="detail-row">
             <span class="detail-label">回调地址</span>
             <span class="detail-value">
-              <span v-for="u in info.client.redirect_uris" :key="u" class="d-block">{{ u }}</span>
+              <span v-for="u in info.client.redirect_uris" :key="u" class="ns-d-block">{{ u }}</span>
             </span>
           </div>
           <div class="detail-row">
@@ -270,10 +270,10 @@ async function submitDecision(approve: boolean) {
             <span class="detail-value">{{ redirectUri }}</span>
           </div>
 
-          <n-alert v-if="granted" type="success" :show-icon="true" class="mt-4">
+          <n-alert v-if="granted" type="success" :show-icon="true" class="ns-mt-4">
             已授权，正在跳转至应用（{{ redirectUri }}）。若未自动跳转请直接访问该地址。
           </n-alert>
-          <div v-else class="d-flex gap-3 mt-4">
+          <div v-else class="ns-flex ns-gap-3 ns-mt-4">
             <n-button type="primary" block :loading="submitting" @click="submitDecision(true)">
               同意授权
             </n-button>
@@ -284,7 +284,7 @@ async function submitDecision(approve: boolean) {
         <n-empty
           v-if="!loading && !info && !error"
           description="未找到该应用信息"
-          class="py-4"
+          class="ns-py-4"
         />
       </n-spin>
     </template>

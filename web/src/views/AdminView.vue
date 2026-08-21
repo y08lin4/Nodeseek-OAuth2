@@ -388,7 +388,7 @@ onMounted(() => {
     <p class="ns-card-sub">维护系统账号 Cookie（私信核验依赖它，失效则服务不可用）</p>
 
     <!-- Token 管理 -->
-    <div class="mb-4">
+    <div class="ns-mb-4">
       <n-form-item label="Admin Token">
         <n-input
           v-model:value="token"
@@ -401,7 +401,7 @@ onMounted(() => {
           Token 仅保存在本浏览器 localStorage（key: ns_admin_token），不会上传到其他存储。
         </template>
       </n-form-item>
-      <div class="d-flex gap-2">
+      <div class="ns-flex ns-gap-2">
         <n-button type="primary" :disabled="!hasToken" @click="saveToken">
           保存并查询
         </n-button>
@@ -411,7 +411,7 @@ onMounted(() => {
 
     <!-- Cookie 状态 -->
     <template v-if="status">
-      <h2 class="h6 mb-3">系统 Cookie 状态</h2>
+      <h2 class="ns-h6 ns-mb-3">系统 Cookie 状态</h2>
       <div class="detail-row">
         <span class="detail-label">Cookie 状态</span>
         <span class="detail-value">
@@ -436,7 +436,7 @@ onMounted(() => {
           <n-tag v-else type="success" size="small" round>关闭</n-tag>
         </span>
       </div>
-      <n-alert v-if="!status.cookie.set" type="error" class="mt-3">
+      <n-alert v-if="!status.cookie.set" type="error" class="ns-mt-3">
         系统 Cookie 未设置，登录核验将不可用，请立即更新。
       </n-alert>
     </template>
@@ -444,12 +444,12 @@ onMounted(() => {
       v-else-if="hasToken && !loading"
       description="Token 已保存，点击「保存并查询」加载状态"
       size="small"
-      class="py-3"
+      class="ns-py-3"
     />
 
     <!-- 邮件配置状态 -->
-    <div v-if="status" class="mt-4">
-      <h2 class="h6 mb-3">邮件配置</h2>
+    <div v-if="status" class="ns-mt-4">
+      <h2 class="ns-h6 ns-mb-3">邮件配置</h2>
       <div class="detail-row">
         <span class="detail-label">邮件通知</span>
         <span class="detail-value">
@@ -465,33 +465,33 @@ onMounted(() => {
       <n-button :loading="sendingMail" :disabled="!hasToken" @click="handleTestMail">
         发送测试邮件
       </n-button>
-      <div class="form-text mt-1">
+      <div class="ns-form-text ns-mt-1">
         用于验证 SMTP 邮件发送是否可用（未配置时提示 SMTP 未配置）。
       </div>
       <!-- 新提交邮件通知状态：开关由服务端环境变量 NS_REVIEW_EMAIL_NOTIFY 控制（未暴露给前端，仅提示） -->
-      <div class="form-text mt-1">新应用提交邮件通知：由服务端 NS_REVIEW_EMAIL_NOTIFY 控制</div>
+      <div class="ns-form-text ns-mt-1">新应用提交邮件通知：由服务端 NS_REVIEW_EMAIL_NOTIFY 控制</div>
     </div>
 
     <!-- 审核队列（Admin Token 已填时显示） -->
-    <div v-if="hasToken" class="mt-4">
-      <h2 class="h6 mb-3">审核队列</h2>
+    <div v-if="hasToken" class="ns-mt-4">
+      <h2 class="ns-h6 ns-mb-3">审核队列</h2>
       <n-spin :show="reviewsLoading">
         <n-empty
           v-if="!reviewsLoading && reviews.length === 0"
           description="暂无待审核项"
           size="small"
-          class="py-3"
+          class="ns-py-3"
         />
         <div v-else class="review-list">
           <n-card v-for="r in reviews" :key="r.client_id" size="small" class="review-item">
-            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+            <div class="ns-flex ns-align-center ns-gap-2 ns-mb-1 ns-flex-wrap">
               <n-tag :type="reviewTypeClass(r.type)" size="small" round>
                 {{ reviewTypeText(r.type) }}
               </n-tag>
               <span class="review-name">{{ r.client_name }}</span>
               <code class="review-client-id">{{ r.client_id }}</code>
             </div>
-            <div class="text-muted small">owner: {{ r.owner_user_id }} · {{ formatTime(r.created_at) }}</div>
+            <div class="ns-text-muted ns-small">owner: {{ r.owner_user_id }} · {{ formatTime(r.created_at) }}</div>
             <div v-if="r.detail" class="review-detail">{{ r.detail }}</div>
             <div class="review-actions">
               <n-button
@@ -517,18 +517,18 @@ onMounted(() => {
     </div>
 
     <!-- 系统账号（Admin Token 已填时显示） -->
-    <div v-if="hasToken" class="mt-4">
-      <h2 class="h6 mb-3">系统账号</h2>
+    <div v-if="hasToken" class="ns-mt-4">
+      <h2 class="ns-h6 ns-mb-3">系统账号</h2>
       <n-spin :show="accountsLoading">
         <n-empty
           v-if="!accountsLoading && accounts.length === 0"
           description="暂无系统账号"
           size="small"
-          class="py-3"
+          class="ns-py-3"
         />
         <div v-else class="review-list">
           <n-card v-for="a in accounts" :key="a.account_id" size="small" class="review-item">
-            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+            <div class="ns-flex ns-align-center ns-gap-2 ns-mb-1 ns-flex-wrap">
               <n-tag :type="a.enabled ? 'success' : 'default'" size="small" round>
                 {{ a.enabled ? '启用' : '停用' }}
               </n-tag>
@@ -536,7 +536,7 @@ onMounted(() => {
               <code class="review-client-id">{{ a.account_id }}</code>
               <n-tag v-if="a.auto_detected" type="info" size="small" round>自动识别</n-tag>
             </div>
-            <div class="text-muted small">
+            <div class="ns-text-muted ns-small">
               优先级 {{ a.priority }} · 更新时间 {{ formatTime(a.updated_at) }}
               <template v-if="a.last_error">
                 · 最近错误：{{ a.last_error }}（失败 {{ a.fail_count }} 次）
@@ -579,9 +579,9 @@ onMounted(() => {
       </n-spin>
 
       <!-- 新增系统账号 -->
-      <div class="mt-3">
+      <div class="ns-mt-3">
         <n-form-item label="新增系统账号">
-          <div class="d-flex gap-2 w-100">
+          <div class="ns-flex ns-gap-2 ns-w-100">
             <n-input
               v-model:value="newAccountId"
               placeholder="账号 ID（纯数字）"
@@ -604,8 +604,8 @@ onMounted(() => {
     </div>
 
     <!-- 更新 Cookie -->
-    <div class="mt-4">
-      <h2 class="h6 mb-3">更新系统 Cookie</h2>
+    <div class="ns-mt-4">
+      <h2 class="ns-h6 ns-mb-3">更新系统 Cookie</h2>
       <n-form-item label="目标账号">
         <n-select v-model:value="cookieAccountId" :options="cookieAccountOptions" />
       </n-form-item>

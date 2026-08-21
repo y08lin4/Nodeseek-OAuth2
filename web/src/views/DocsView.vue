@@ -13,13 +13,13 @@ import { NCard, NAlert, NTable } from 'naive-ui'
     </template>
     <p class="ns-card-sub">标准 OAuth2 授权码流程，接入约需 10 分钟</p>
 
-    <n-alert type="info" :show-icon="true" class="mb-3">
+    <n-alert type="info" :show-icon="true" class="ns-mb-3">
       💡 本服务发布 RFC 8414 元数据，第三方可通过
       <code>/.well-known/oauth-authorization-server</code> 自动发现端点，免手写配置。
     </n-alert>
 
     <!-- 接入步骤 -->
-    <h2 class="h5 mt-4 mb-3">接入步骤</h2>
+    <h2 class="ns-h5 ns-mt-4 ns-mb-3">接入步骤</h2>
     <ol class="docs-steps">
       <li>
         <strong>注册应用</strong>：在
@@ -57,9 +57,9 @@ import { NCard, NAlert, NTable } from 'naive-ui'
     </ol>
 
     <!-- 代码示例 -->
-    <h2 class="h5 mt-4 mb-3">代码示例</h2>
+    <h2 class="ns-h5 ns-mt-4 ns-mb-3">代码示例</h2>
 
-    <h3 class="h6 mt-3">curl（换 token + 取用户信息）</h3>
+    <h3 class="ns-h6 ns-mt-3">curl（换 token + 取用户信息）</h3>
     <pre class="code-block"><code># 1) 授权码换 access_token
 curl -X POST https://auth.example.com/oauth/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
@@ -73,7 +73,7 @@ curl -X POST https://auth.example.com/oauth/token \
 curl https://auth.example.com/oauth/userinfo \
   -H "Authorization: Bearer &lt;access_token&gt;"</code></pre>
 
-    <h3 class="h6 mt-3">Node.js（fetch form-encoded 示例）</h3>
+    <h3 class="ns-h6 ns-mt-3">Node.js（fetch form-encoded 示例）</h3>
     <pre class="code-block"><code>// 1) 换 token（form-encoded）
 const body = new URLSearchParams({
   grant_type: 'authorization_code',
@@ -95,13 +95,13 @@ const user = await fetch('https://auth.example.com/oauth/userinfo', {
 }).then((r) => r.json())
 console.log(user.user_id, user.sub, user.stats)</code></pre>
 
-    <n-alert type="warning" :show-icon="true" class="mt-2 mb-3">
+    <n-alert type="warning" :show-icon="true" class="ns-mt-2 ns-mb-3">
       ⚠️ <code>state</code> 校验提示：回调时请比对 <code>state</code> 与发起授权时的一致，
       不一致视为 CSRF 攻击，直接拒绝。
     </n-alert>
 
     <!-- 端点一览表 -->
-    <h2 class="h5 mt-4 mb-3">端点一览</h2>
+    <h2 class="ns-h5 ns-mt-4 ns-mb-3">端点一览</h2>
     <n-table :bordered="true" size="small" class="docs-table">
       <thead>
         <tr>

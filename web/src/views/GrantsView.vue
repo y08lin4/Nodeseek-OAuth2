@@ -89,16 +89,16 @@ onMounted(async () => {
       <n-empty
         v-if="!loading && grants.length === 0"
         description="还没有授权任何应用。"
-        class="py-4"
+        class="ns-py-4"
       />
       <div v-else class="review-list">
         <n-card v-for="g in grants" :key="g.client_id" size="small" class="review-item">
-          <div class="d-flex align-items-center gap-3">
+          <div class="ns-flex ns-align-center ns-gap-3">
             <img v-if="g.icon_url" :src="g.icon_url" alt="应用图标" class="client-icon" />
             <div v-else class="client-icon client-icon-placeholder">A</div>
-            <div class="flex-grow-1">
+            <div class="ns-flex-grow-1">
               <div class="review-name">{{ g.client_name }}</div>
-              <div class="text-muted small">授权时间：{{ formatTime(g.granted_at) }}</div>
+              <div class="ns-text-muted ns-small">授权时间：{{ formatTime(g.granted_at) }}</div>
             </div>
             <n-tag :type="g.min_rank > 0 ? 'warning' : 'default'" size="small" round>
               {{ g.min_rank > 0 ? `最低等级 ${g.min_rank}` : '不限等级' }}

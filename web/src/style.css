@@ -78,6 +78,7 @@ body {
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
+  padding-top: 32px;
   padding-bottom: 48px;
 }
 
@@ -525,3 +526,46 @@ body {
 .docs-table code {
   font-size: 12px;
 }
+
+/* —— Bootstrap 兼容工具类（CDN 移除后自实现）—— */
+.ns-text-muted { color: var(--ns-muted); }
+.ns-small { font-size: 12px; }
+
+.ns-mb-0 { margin-bottom: 0; }
+.ns-mb-1 { margin-bottom: 4px; }
+.ns-mb-2 { margin-bottom: 8px; }
+.ns-mb-3 { margin-bottom: 12px; }
+.ns-mb-4 { margin-bottom: 16px; }
+
+.ns-mt-1 { margin-top: 4px; }
+.ns-mt-2 { margin-top: 8px; }
+.ns-mt-3 { margin-top: 12px; }
+.ns-mt-4 { margin-top: 16px; }
+.ns-mt-5 { margin-top: 24px; }
+
+.ns-me-1 { margin-right: 4px; }
+
+.ns-flex { display: flex; }
+.ns-flex-wrap { flex-wrap: wrap; }
+.ns-flex-grow-1 { flex-grow: 1; }
+.ns-grid { display: grid; }
+.ns-d-block { display: block; }
+
+.ns-gap-2 { gap: 8px; }
+.ns-gap-3 { gap: 12px; }
+
+.ns-justify-center { justify-content: center; }
+.ns-justify-between { justify-content: space-between; }
+.ns-align-center { align-items: center; }
+.ns-text-center { text-align: center; }
+
+.ns-w-100 { width: 100%; }
+
+.ns-h5 { font-size: 20px; }
+.ns-h6 { font-size: 16px; }
+
+.ns-py-3 { padding: 12px 0; }
+.ns-py-4 { padding: 24px 0; }
+.ns-py-5 { padding: 32px 0; }
+
+.ns-form-text { margin-top: 4px; font-size: 13px; color: var(--ns-muted); }

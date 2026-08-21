@@ -309,7 +309,7 @@ function backToStep1() {
           :input-props="{ inputmode: 'numeric', autocomplete: 'off' }"
         />
         <template #feedback>
-          <span class="text-muted small">
+          <span class="ns-text-muted ns-small">
             在 NodeSeek 个人主页 URL 中可找到你的数字 ID（/space/ 后的一串数字）。
           </span>
         </template>
@@ -321,15 +321,15 @@ function backToStep1() {
 
     <!-- 第二步：展示验证码 + 账号 chips + 倒计时 + 私信链接 -->
     <div v-else-if="step === 2">
-      <p class="mb-1">请将以下验证码通过私信发送给任一系统账号</p>
+      <p class="ns-mb-1">请将以下验证码通过私信发送给任一系统账号</p>
 
       <!-- 账号 chips：单选，默认选中第一个；私信链接与自动填充按选中账号生成 -->
       <n-radio-group
         v-if="accounts.length > 0"
         v-model:value="selectedAccountId"
-        class="account-chips mt-2 mb-1"
+        class="account-chips ns-mt-2 ns-mb-1"
       >
-        <span class="text-muted small me-1">发送给任一系统账号：</span>
+        <span class="ns-text-muted ns-small ns-me-1">发送给任一系统账号：</span>
         <n-radio-button
           v-for="a in accounts"
           :key="a.account_id"
@@ -338,10 +338,10 @@ function backToStep1() {
           {{ a.account_name }}({{ a.account_id }})
         </n-radio-button>
       </n-radio-group>
-      <p v-if="accounts.length > 0" class="text-muted small mb-0">
+      <p v-if="accounts.length > 0" class="ns-text-muted ns-small ns-mb-0">
         当前选中：<strong>{{ selectedAccount?.account_name }}</strong>（NS ID：{{ selectedAccount?.account_id }}）
       </p>
-      <p v-else class="text-muted small mb-0">
+      <p v-else class="ns-text-muted ns-small ns-mb-0">
         系统账号：<strong>{{ config?.nodeseek.auth_account_username ?? '—' }}</strong>
         （NS ID：{{ config?.nodeseek.auth_account_id ?? '—' }}）
       </p>
@@ -356,7 +356,7 @@ function backToStep1() {
       </div>
 
       <!-- 双主按钮并排：复制验证码 + 打开私信页 -->
-      <div class="d-flex gap-2 mt-3">
+      <div class="ns-flex ns-gap-2 ns-mt-3">
         <n-button type="primary" block :disabled="loading" @click="copyCode">
           复制验证码
         </n-button>
@@ -366,7 +366,7 @@ function backToStep1() {
       </div>
 
       <!-- 扩展自动填充（次要链接，面向维护者；无扩展时点击等同复制+打开） -->
-      <div class="text-center mt-2">
+      <div class="ns-text-center ns-mt-2">
         <n-button
           text
           :disabled="fillState === 'waiting'"
@@ -377,13 +377,13 @@ function backToStep1() {
       </div>
       <n-alert
         v-if="fillMsg"
-        class="mt-2"
+        class="ns-mt-2"
         :type="fillState === 'done' ? 'success' : 'info'"
       >
         {{ fillMsg }}
       </n-alert>
 
-      <div class="d-grid gap-2 mt-3">
+      <div class="ns-grid ns-gap-2 ns-mt-3">
         <n-button type="primary" block :loading="loading" @click="handleConfirm">
           我已发送验证码
         </n-button>
@@ -398,12 +398,12 @@ function backToStep1() {
 
     <!-- 第三步：登录成功，展示用户 stats 与授权门槛提示 -->
     <div v-else>
-      <n-alert type="success" :show-icon="true" class="mb-3">
+      <n-alert type="success" :show-icon="true" class="ns-mb-3">
         登录成功！账号归属已通过私信验证码确认。
       </n-alert>
 
       <!-- 用户信息卡片（confirm 响应附带 stats；拉取失败时为 null 则不显示） -->
-      <div v-if="userStats" class="stats-grid mt-3">
+      <div v-if="userStats" class="stats-grid ns-mt-3">
         <div class="stat-item">
           <div class="stat-value">{{ userStats.rank }}</div>
           <div class="stat-label">等级</div>
@@ -427,10 +427,10 @@ function backToStep1() {
       </div>
 
       <!-- 授权门槛提示（gate 中值为 0 的项不显示） -->
-      <n-alert v-if="gateText" type="info" class="mt-3">{{ gateText }}</n-alert>
-      <n-alert v-else type="info" class="mt-3">授权门槛信息获取失败，请稍后重试</n-alert>
+      <n-alert v-if="gateText" type="info" class="ns-mt-3">{{ gateText }}</n-alert>
+      <n-alert v-else type="info" class="ns-mt-3">授权门槛信息获取失败，请稍后重试</n-alert>
 
-      <n-button type="primary" block class="mt-3" @click="goAfterLogin">
+      <n-button type="primary" block class="ns-mt-3" @click="goAfterLogin">
         进入服务（{{ redirectTarget }}）
       </n-button>
     </div>
