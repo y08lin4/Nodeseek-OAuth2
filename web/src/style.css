@@ -1,14 +1,19 @@
 /* 全局样式：仅保留布局级 / 自定义视觉部分；
    组件级样式（卡片/徽章/提示条/按钮等）已由 Naive UI 组件接管。 */
 :root {
-  --ns-bg: #f0f2f5;
+  --ns-primary: #2ea44f;
+  --ns-primary-hover: #1a7f37;
+  --ns-primary-soft: #e6f4ea;
+  --ns-text: #333;
+  --ns-muted: #555;
+  --ns-faint: #888;
+  --ns-bg: #fbfbfb;
   --ns-card-bg: #ffffff;
-  --ns-primary: #1f6feb;
-  --ns-text: #24292f;
-  --ns-muted: #6e7781;
-  --ns-border: #d0d7de;
+  --ns-border: #e5e7eb;
   --ns-success: #1a7f37;
+  --ns-warning: #9a6700;
   --ns-danger: #cf222e;
+  --ns-info: #1f6feb;
 }
 
 * {
@@ -41,7 +46,7 @@ body {
 }
 
 .app-nav-inner {
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 10px 16px;
   display: flex;
@@ -76,7 +81,7 @@ body {
 .app-shell main {
   flex: 1;
   width: 100%;
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto;
   padding-top: 32px;
   padding-bottom: 48px;
@@ -90,10 +95,14 @@ body {
   background: #fff;
 }
 
-/* NCard 页头标题（各视图统一） */
+/* NCard 页头标题（各视图统一）：品牌绿左条 */
 .page-title {
-  font-size: 18px;
+  display: inline-block;
+  font-size: 16px;
   font-weight: 600;
+  padding-left: 10px;
+  border-left: 3px solid var(--ns-primary);
+  line-height: 1.4;
 }
 
 /* NCard 副标题说明 */
@@ -123,7 +132,7 @@ body {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #eaeef2;
+  background: var(--ns-border);
   color: var(--ns-muted);
   font-weight: 600;
   display: inline-flex;
@@ -140,7 +149,7 @@ body {
 .step-line {
   width: 56px;
   height: 2px;
-  background: #d8dee4;
+  background: var(--ns-border);
   margin: 0 12px;
 }
 
@@ -166,7 +175,8 @@ body {
   font-weight: 700;
   letter-spacing: 3px;
   text-align: center;
-  background: #f6f8fa;
+  font-variant-numeric: tabular-nums;
+  background: var(--ns-bg);
   border: 1px dashed var(--ns-border);
   border-radius: 8px;
   padding: 16px 12px;
@@ -194,7 +204,7 @@ body {
   justify-content: space-between;
   gap: 16px;
   padding: 10px 0;
-  border-bottom: 1px solid #eff2f5;
+  border-bottom: 1px solid var(--ns-border);
   font-size: 14px;
 }
 
@@ -220,7 +230,7 @@ body {
 }
 
 .stat-item {
-  background: #f6f8fa;
+  background: var(--ns-bg);
   border: 1px solid var(--ns-border);
   border-radius: 8px;
   padding: 12px 6px;
@@ -275,7 +285,7 @@ body {
 /* 授权页应用头部 */
 .app-head {
   padding-bottom: 12px;
-  border-bottom: 1px solid #eff2f5;
+  border-bottom: 1px solid var(--ns-border);
 }
 
 .app-icon {
@@ -292,7 +302,7 @@ body {
   justify-content: center;
   font-weight: 700;
   color: var(--ns-muted);
-  background: #eaeef2;
+  background: var(--ns-border);
 }
 
 .app-name {
@@ -342,7 +352,7 @@ body {
   justify-content: center;
   font-weight: 700;
   color: var(--ns-muted);
-  background: #eaeef2;
+  background: var(--ns-border);
 }
 
 .client-desc {
@@ -384,8 +394,8 @@ body {
 .review-detail {
   margin-top: 6px;
   padding: 8px 10px;
-  background: #fff;
-  border: 1px solid #eff2f5;
+  background: var(--ns-card-bg);
+  border: 1px solid var(--ns-border);
   border-radius: 6px;
   font-size: 13px;
   color: var(--ns-muted);
@@ -397,23 +407,50 @@ body {
   margin-top: 10px;
 }
 
+/* 列表斑马纹（Admin 审核队列 / Grants 授权列表 / Dashboard 应用统计） */
+.review-list .review-item:nth-child(even) {
+  background: var(--ns-bg);
+}
+
+
 /* —— 门户首页（/）—— */
 .portal {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 40px;
 }
 
+/* Hero：浅底 + 24px 微网格纹理 + 底部品牌绿渐变细线 */
 .portal-hero {
-  background: linear-gradient(135deg, #f6f8fa 0%, #eef3fb 100%);
+  position: relative;
+  background-color: var(--ns-bg);
+  background-image:
+    linear-gradient(rgba(51, 51, 51, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 51, 51, 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
   border: 1px solid var(--ns-border);
-  border-radius: 14px;
+  border-radius: 6px;
   padding: 48px 32px;
   text-align: center;
+  overflow: hidden;
+}
+
+.portal-hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #2ea44f, #45ca6b, #2ea44f);
+}
+
+.portal-logo {
+  margin-bottom: 16px;
 }
 
 .portal-title {
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 700;
   margin-bottom: 12px;
   color: var(--ns-text);
@@ -423,7 +460,15 @@ body {
   font-size: 16px;
   color: var(--ns-muted);
   max-width: 520px;
-  margin: 0 auto 24px;
+  margin: 0 auto 16px;
+}
+
+.portal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
 }
 
 .portal-cta {
@@ -433,31 +478,62 @@ body {
   gap: 12px;
 }
 
+.portal-stats {
+  margin-top: 28px;
+  font-size: 12px;
+  color: var(--ns-faint);
+  font-variant-numeric: tabular-nums;
+}
+
 .portal-h2 {
-  font-size: 18px;
+  display: inline-block;
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 14px;
+  color: var(--ns-text);
+  padding-left: 10px;
+  border-left: 3px solid var(--ns-primary);
+  margin-bottom: 18px;
+  line-height: 1.4;
 }
 
 /* 卡片网格（三方角色 / 快捷入口） */
 .role-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
 }
 
+.role-grid .n-card {
+  border-radius: 6px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.role-grid .n-card:hover {
+  transform: translateY(-1px);
+  border-color: #b4cdb9;
+  box-shadow: 0 1px 3px rgba(51, 51, 51, 0.08);
+}
+
 .role-icon {
-  font-size: 26px;
-  margin-bottom: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: var(--ns-primary-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 12px;
 }
 
 .role-grid h3 {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 6px;
+  color: var(--ns-text);
 }
 
-/* 三步私信验证流程 */
+/* 三步私信验证流程：绿圆徽标 + 步间分割线 */
 .flow-steps {
   display: flex;
   align-items: stretch;
@@ -465,36 +541,53 @@ body {
   gap: 10px;
   background: var(--ns-card-bg);
   border: 1px solid var(--ns-border);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 20px;
 }
 
 .flow-step {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   flex: 1;
   min-width: 180px;
 }
 
+.flow-step:not(:first-child) {
+  border-left: 1px solid var(--ns-border);
+  padding-left: 24px;
+}
+
 .flow-num {
-  font-size: 22px;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--ns-primary);
+  color: #fff;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--ns-primary);
-  line-height: 1.2;
+  line-height: 26px;
+  text-align: center;
+  margin-top: 1px;
 }
 
 .flow-arrow {
-  align-self: center;
-  color: var(--ns-muted);
-  font-size: 18px;
+  display: none;
 }
 
-/* 特性列表 */
+/* 特性：品牌绿浅底圆角标签云 */
 .feature-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+}
+
+.feature-list .n-tag {
+  background: var(--ns-primary-soft);
+  border-color: transparent;
+  color: var(--ns-primary-hover);
+  border-radius: 4px;
 }
 
 /* —— 接入文档页（/docs）—— */

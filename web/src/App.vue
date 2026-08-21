@@ -11,6 +11,8 @@ import {
   dateZhCN,
 } from 'naive-ui'
 import { me, logout } from './api'
+import { themeOverrides } from './theme'
+import NSLogo from './components/NSLogo.vue'
 
 const route = useRoute()
 const userId = ref('') // 已登录时为 NS 数字 ID，空 = 未登录
@@ -41,14 +43,14 @@ watch(() => route.fullPath, refreshMe)
 </script>
 
 <template>
-  <n-config-provider :locale="zhCN" :date-locale="dateZhCN">
+  <n-config-provider :locale="zhCN" :date-locale="dateZhCN" :theme-overrides="themeOverrides">
     <n-message-provider>
       <n-dialog-provider>
         <div class="app-shell">
           <!-- 全局导航 -->
           <nav class="app-nav">
             <div class="app-nav-inner">
-              <RouterLink to="/" class="app-brand">Nodeseek OAuth2</RouterLink>
+              <RouterLink to="/" class="app-brand"><NSLogo :size="28" /></RouterLink>
               <div class="app-nav-right">
                 <!-- 接入文档：公开可见 -->
                 <n-button text to="/docs">接入文档</n-button>
