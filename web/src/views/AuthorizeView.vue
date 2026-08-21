@@ -7,6 +7,7 @@
 // 同意/拒绝 → POST /oauth/authorize/decision。
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { NCard, NAlert, NTag, NButton, NSpin } from 'naive-ui'
 import { getClient, ApiError, type ClientInfo } from '../api'
 
 const route = useRoute()
@@ -108,7 +109,6 @@ onMounted(async () => {
 // - 跨域 redirect_uri：浏览器拦截跨域跟随抛 TypeError，此时决策已被服务端受理，
 //   提示用户授权完成并给出应用地址（生产环境建议 redirect_uri 与本站同源，见 notes）。
 async function submitDecision(approve: boolean) {
-  error.value = ''
   submitting.value = true
   try {
     const res = await fetch('/oauth/authorize/decision', {
@@ -152,11 +152,13 @@ async function submitDecision(approve: boolean) {
 </script>
 
 <template>
-  <div class="ns-card">
-    <h1 class="ns-card-title">授权确认</h1>
+  <n-card class="page-card">
+    <template #header>
+      <span class="page-title">授权确认</span>
+    </template>
     <p class="ns-card-sub">第三方应用请求使用你的 Nodeseek 账号登录</p>
 
-    <div v-if="error" class="ns-alert ns-alert-error">{{ error }}</div>
+    <n-alert v-if="error" type="error" :show-icon="true" class="mb-3">{{ error }}</n-alert>
 
     <!-- 门槛未满足（403）：错误面板，不显示同意/拒绝按钮 -->
     <div v-if="gateError" class="gate-error-panel mt-2">
@@ -167,123 +169,124 @@ async function submitDecision(approve: boolean) {
         你的 NodeSeek 账号暂不满足该应用的授权门槛，可提升等级或加入时长后再试。
       </p>
       <div class="d-flex gap-2 justify-content-center">
-        <RouterLink to="/" class="btn btn-outline-secondary">返回首页</RouterLink>
-        <RouterLink to="/login" class="btn btn-primary">重新登录</RouterLink>
+        <n-button to="/">返回首页</n-button>
+        <n-button type="primary" to="/login">重新登录</n-button>
       </div>
     </div>
 
     <template v-else>
-      <div v-if="loading" class="text-center text-muted py-4">加载中…</div>
-
-      <div v-else-if="info" class="mt-2">
-        <!-- 应用信息 -->
-        <div class="app-head d-flex align-items-center gap-3 mb-3">
-          <img
-            v-if="info.client.icon_url"
-            :src="info.client.icon_url"
-            alt="应用图标"
-            class="app-icon"
-          />
-          <div v-else class="app-icon app-icon-placeholder" aria-hidden="true">A</div>
-          <div>
-            <div class="app-name">{{ info.client.client_name }}</div>
-            <a
-              v-if="info.client.homepage_url"
-              :href="info.client.homepage_url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-muted small"
-            >
-              {{ info.client.homepage_url }}
-            </a>
+      <n-spin :show="loading">
+        <div v-if="!loading && info" class="mt-2">
+          <!-- 应用信息 -->
+          <div class="app-head d-flex align-items-center gap-3 mb-3">
+            <img
+              v-if="info.client.icon_url"
+              :src="info.client.icon_url"
+              alt="应用图标"
+              class="app-icon"
+            />
+            <div v-else class="app-icon app-icon-placeholder" aria-hidden="true">A</div>
+            <div>
+              <div class="app-name">{{ info.client.client_name }}</div>
+              <a
+                v-if="info.client.homepage_url"
+                :href="info.client.homepage_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-muted small"
+              >
+                {{ info.client.homepage_url }}
+              </a>
+            </div>
           </div>
-        </div>
-        <p v-if="info.client.description" class="text-muted mb-3">{{ info.client.description }}</p>
+          <p v-if="info.client.description" class="text-muted mb-3">{{ info.client.description }}</p>
 
-        <div class="ns-alert ns-alert-info">
-          <strong>{{ info.client.client_name }}</strong> 请求获得你的 NodeSeek 账号授权。
-          <template v-if="granted">授权已完成，正在跳转至应用…</template>
-        </div>
+          <n-alert type="info" class="mb-3">
+            <strong>{{ info.client.client_name }}</strong> 请求获得你的 NodeSeek 账号授权。
+            <template v-if="granted">授权已完成，正在跳转至应用…</template>
+          </n-alert>
 
-        <!-- 门槛状态 -->
-        <div class="detail-row">
-          <span class="detail-label">授权门槛</span>
-          <span class="detail-value">
-            <span v-if="info.gate.ok && gateParts.length" class="badge-set">
-              已满足（{{ gateParts.join(' · ') }}）
+          <!-- 门槛状态 -->
+          <div class="detail-row">
+            <span class="detail-label">授权门槛</span>
+            <span class="detail-value">
+              <n-tag v-if="info.gate.ok" type="success" size="small" round>
+                {{ gateParts.length ? `已满足（${gateParts.join(' · ')}）` : '无门槛' }}
+              </n-tag>
+              <n-tag v-else type="error" size="small" round>不满足授权门槛</n-tag>
             </span>
-            <span v-else-if="info.gate.ok" class="badge-set">无门槛</span>
-            <span v-else class="badge-unset">不满足授权门槛</span>
-          </span>
-        </div>
+          </div>
 
-        <!-- 当前用户 stats -->
-        <div v-if="info.stats" class="stats-grid mt-3">
-          <div class="stat-item">
-            <div class="stat-value">{{ info.stats.rank }}</div>
-            <div class="stat-label">等级</div>
+          <!-- 当前用户 stats -->
+          <div v-if="info.stats" class="stats-grid mt-3">
+            <div class="stat-item">
+              <div class="stat-value">{{ info.stats.rank }}</div>
+              <div class="stat-label">等级</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ info.stats.join_days }}</div>
+              <div class="stat-label">加入天数</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ info.stats.chicken }}</div>
+              <div class="stat-label">鸡腿</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ info.stats.topics }}</div>
+              <div class="stat-label">主题帖</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ info.stats.comments }}</div>
+              <div class="stat-label">评论</div>
+            </div>
           </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ info.stats.join_days }}</div>
-            <div class="stat-label">加入天数</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ info.stats.chicken }}</div>
-            <div class="stat-label">鸡腿</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ info.stats.topics }}</div>
-            <div class="stat-label">主题帖</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ info.stats.comments }}</div>
-            <div class="stat-label">评论</div>
-          </div>
-        </div>
 
-        <div class="detail-row">
-          <span class="detail-label">应用 ID</span>
-          <span class="detail-value">{{ info.client.client_id }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">开发者 NS ID</span>
-          <span class="detail-value">{{ info.client.owner_user_id }}</span>
-        </div>
-        <div class="detail-row" v-if="info.client.min_rank !== undefined">
-          <span class="detail-label">最低等级要求</span>
-          <span class="detail-value">{{ info.client.min_rank > 0 ? `等级 ≥ ${info.client.min_rank}` : '不限' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">回调地址</span>
-          <span class="detail-value">
-            <span v-for="u in info.client.redirect_uris" :key="u" class="d-block">{{ u }}</span>
-          </span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">授权方式</span>
-          <span class="detail-value">Authorization Code（{{ responseType }}）</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">授权回调</span>
-          <span class="detail-value">{{ redirectUri }}</span>
-        </div>
+          <div class="detail-row">
+            <span class="detail-label">应用 ID</span>
+            <span class="detail-value">{{ info.client.client_id }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">开发者 NS ID</span>
+            <span class="detail-value">{{ info.client.owner_user_id }}</span>
+          </div>
+          <div class="detail-row" v-if="info.client.min_rank !== undefined">
+            <span class="detail-label">最低等级要求</span>
+            <span class="detail-value">
+              {{ info.client.min_rank > 0 ? `等级 ≥ ${info.client.min_rank}` : '不限' }}
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">回调地址</span>
+            <span class="detail-value">
+              <span v-for="u in info.client.redirect_uris" :key="u" class="d-block">{{ u }}</span>
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">授权方式</span>
+            <span class="detail-value">Authorization Code（{{ responseType }}）</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">授权回调</span>
+            <span class="detail-value">{{ redirectUri }}</span>
+          </div>
 
-        <div v-if="granted" class="mt-4">
-          <div class="ns-alert ns-alert-success">
+          <n-alert v-if="granted" type="success" :show-icon="true" class="mt-4">
             已授权，正在跳转至应用（{{ redirectUri }}）。若未自动跳转请直接访问该地址。
+          </n-alert>
+          <div v-else class="d-flex gap-3 mt-4">
+            <n-button type="primary" block :loading="submitting" @click="submitDecision(true)">
+              同意授权
+            </n-button>
+            <n-button block :disabled="submitting" @click="submitDecision(false)">拒绝</n-button>
           </div>
         </div>
-        <div v-else class="d-flex gap-3 mt-4">
-          <button class="btn btn-primary flex-fill" :disabled="submitting" @click="submitDecision(true)">
-            {{ submitting ? '提交中…' : '同意授权' }}
-          </button>
-          <button class="btn btn-outline-secondary flex-fill" :disabled="submitting" @click="submitDecision(false)">
-            拒绝
-          </button>
-        </div>
-      </div>
 
-      <div v-else-if="!error" class="text-center text-muted py-4">未找到该应用信息</div>
+        <n-empty
+          v-if="!loading && !info && !error"
+          description="未找到该应用信息"
+          class="py-4"
+        />
+      </n-spin>
     </template>
-  </div>
+  </n-card>
 </template>

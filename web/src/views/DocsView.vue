@@ -3,17 +3,20 @@
 // ① 注册应用 ② 构造授权 URL ③ 用户授权 ④ callback 收 code + 校验 state
 // ⑤ POST /oauth/token 换 access_token ⑥ GET /oauth/userinfo 取用户信息 ⑦ 应用自签会话
 // 含 curl 与 Node/JS 示例、端点一览表、.well-known 自动发现提示
+import { NCard, NAlert, NTable } from 'naive-ui'
 </script>
 
 <template>
-  <div class="ns-card docs">
-    <h1 class="ns-card-title">接入文档</h1>
+  <n-card class="page-card">
+    <template #header>
+      <span class="page-title">接入文档</span>
+    </template>
     <p class="ns-card-sub">标准 OAuth2 授权码流程，接入约需 10 分钟</p>
 
-    <div class="ns-alert ns-alert-info">
+    <n-alert type="info" :show-icon="true" class="mb-3">
       💡 本服务发布 RFC 8414 元数据，第三方可通过
       <code>/.well-known/oauth-authorization-server</code> 自动发现端点，免手写配置。
-    </div>
+    </n-alert>
 
     <!-- 接入步骤 -->
     <h2 class="h5 mt-4 mb-3">接入步骤</h2>
@@ -92,27 +95,33 @@ const user = await fetch('https://auth.example.com/oauth/userinfo', {
 }).then((r) => r.json())
 console.log(user.user_id, user.sub, user.stats)</code></pre>
 
-    <p class="text-muted small mt-2">
+    <n-alert type="warning" :show-icon="true" class="mt-2 mb-3">
       ⚠️ <code>state</code> 校验提示：回调时请比对 <code>state</code> 与发起授权时的一致，
       不一致视为 CSRF 攻击，直接拒绝。
-    </p>
+    </n-alert>
 
     <!-- 端点一览表 -->
     <h2 class="h5 mt-4 mb-3">端点一览</h2>
-    <div class="table-responsive">
-      <table class="table table-sm table-bordered align-middle docs-table">
-        <thead>
-          <tr><th>端点</th><th>方法</th><th>说明</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>/oauth/authorize</code></td><td>GET</td><td>授权确认页（浏览器跳转）</td></tr>
-          <tr><td><code>/oauth/authorize/decision</code></td><td>POST</td><td>用户同意 / 拒绝授权</td></tr>
-          <tr><td><code>/oauth/token</code></td><td>POST</td><td>授权码换 access_token（form-encoded）</td></tr>
-          <tr><td><code>/oauth/userinfo</code></td><td>GET</td><td>Bearer 取用户信息（user_id/sub/stats）</td></tr>
-          <tr><td><code>/.well-known/oauth-authorization-server</code></td><td>GET</td><td>RFC 8414 元数据（自动发现）</td></tr>
-          <tr><td><code>/api/config</code></td><td>GET</td><td>前端全局配置（公开）</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+    <n-table :bordered="true" size="small" class="docs-table">
+      <thead>
+        <tr>
+          <th>端点</th>
+          <th>方法</th>
+          <th>说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/oauth/authorize</code></td><td>GET</td><td>授权确认页（浏览器跳转）</td></tr>
+        <tr><td><code>/oauth/authorize/decision</code></td><td>POST</td><td>用户同意 / 拒绝授权</td></tr>
+        <tr><td><code>/oauth/token</code></td><td>POST</td><td>授权码换 access_token（form-encoded）</td></tr>
+        <tr><td><code>/oauth/userinfo</code></td><td>GET</td><td>Bearer 取用户信息（user_id/sub/stats）</td></tr>
+        <tr>
+          <td><code>/.well-known/oauth-authorization-server</code></td>
+          <td>GET</td>
+          <td>RFC 8414 元数据（自动发现）</td>
+        </tr>
+        <tr><td><code>/api/config</code></td><td>GET</td><td>前端全局配置（公开）</td></tr>
+      </tbody>
+    </n-table>
+  </n-card>
 </template>

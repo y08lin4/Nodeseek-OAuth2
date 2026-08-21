@@ -1,4 +1,5 @@
-/* 全局样式：浅色卡片风，贴近原服务观感 */
+/* 全局样式：仅保留布局级 / 自定义视觉部分；
+   组件级样式（卡片/徽章/提示条/按钮等）已由 Naive UI 组件接管。 */
 :root {
   --ns-bg: #f0f2f5;
   --ns-card-bg: #ffffff;
@@ -72,18 +73,6 @@ body {
   font-weight: 600;
 }
 
-/* 导航文字链接（如「我的授权」） */
-.app-nav-link {
-  font-size: 14px;
-  color: var(--ns-primary);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.app-nav-link:hover {
-  text-decoration: underline;
-}
-
 .app-shell main {
   flex: 1;
   width: 100%;
@@ -100,28 +89,20 @@ body {
   background: #fff;
 }
 
-/* 卡片 */
-.ns-card {
-  background: var(--ns-card-bg);
-  border: 1px solid var(--ns-border);
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.08);
-  padding: 32px;
-}
-
-.ns-card-title {
-  font-size: 22px;
+/* NCard 页头标题（各视图统一） */
+.page-title {
+  font-size: 18px;
   font-weight: 600;
-  margin: 0 0 6px;
 }
 
+/* NCard 副标题说明 */
 .ns-card-sub {
   color: var(--ns-muted);
   font-size: 14px;
   margin-bottom: 24px;
 }
 
-/* 步骤指示器 1-2-3 */
+/* 步骤指示器 1-2-3（登录页） */
 .steps {
   display: flex;
   align-items: center;
@@ -177,7 +158,7 @@ body {
   color: #fff;
 }
 
-/* 验证码展示 */
+/* 验证码展示（登录页） */
 .code-box {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 26px;
@@ -206,33 +187,7 @@ body {
   font-weight: 600;
 }
 
-/* 提示条 */
-.ns-alert {
-  border-radius: 8px;
-  padding: 12px 16px;
-  font-size: 14px;
-  margin: 12px 0;
-}
-
-.ns-alert-error {
-  background: #ffebe9;
-  color: var(--ns-danger);
-  border: 1px solid #ffc1c0;
-}
-
-.ns-alert-info {
-  background: #ddf4ff;
-  color: #0550ae;
-  border: 1px solid #b6e3ff;
-}
-
-.ns-alert-success {
-  background: #dafbe1;
-  color: var(--ns-success);
-  border: 1px solid #aceebb;
-}
-
-/* 详情行（授权页/管理页） */
+/* 详情行（授权页/管理页/应用卡片） */
 .detail-row {
   display: flex;
   justify-content: space-between;
@@ -254,55 +209,6 @@ body {
 .detail-value {
   text-align: right;
   word-break: break-all;
-}
-
-/* 管理页状态徽章 */
-.badge-set {
-  background: #dafbe1;
-  color: var(--ns-success);
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.badge-unset {
-  background: #fff1e5;
-  color: #bc4c00;
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* 审核状态徽章：处理中（蓝灰） */
-.badge-pending {
-  background: #ddf4ff;
-  color: #0969da;
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* 审核状态徽章：未通过（红） */
-.badge-danger {
-  background: #ffebe9;
-  color: var(--ns-danger);
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* 已撤销授权徽章（灰） */
-.badge-muted {
-  background: #eaeef2;
-  color: var(--ns-muted);
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 13px;
-  font-weight: 600;
 }
 
 /* 用户 stats 卡片（等级/加入天数/鸡腿/主题帖/评论） */
@@ -338,7 +244,7 @@ body {
   }
 }
 
-/* 授权门槛未满足的错误面板 */
+/* 授权门槛未满足的错误面板（授权页） */
 .gate-error-panel {
   text-align: center;
   background: #fff8f8;
@@ -393,21 +299,7 @@ body {
   font-weight: 600;
 }
 
-/* 注册成功的一次性凭据面板 */
-.credential-panel {
-  background: #fff8e6;
-  border: 1px solid #eed888;
-  border-radius: 10px;
-  padding: 16px;
-}
-
-.credential-warning {
-  color: #9a6700;
-  font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 12px;
-}
-
+/* 注册成功的一次性凭据面板（布局行） */
 .credential-row {
   display: flex;
   align-items: center;
@@ -434,27 +326,7 @@ body {
   user-select: all;
 }
 
-/* 我的应用列表卡片 */
-.client-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.client-card {
-  background: #fff;
-  border: 1px solid var(--ns-border);
-  border-radius: 10px;
-  padding: 16px;
-}
-
-.client-card-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
+/* 应用图标（授权页/我的应用/我的授权） */
 .client-icon {
   width: 40px;
   height: 40px;
@@ -472,17 +344,6 @@ body {
   background: #eaeef2;
 }
 
-.client-name {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.client-id {
-  font-size: 12px;
-  color: var(--ns-muted);
-  word-break: break-all;
-}
-
 .client-desc {
   font-size: 13px;
   color: var(--ns-muted);
@@ -494,16 +355,7 @@ body {
   opacity: 0.65;
 }
 
-/* 卡片操作按钮组 */
-.client-card-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #eff2f5;
-}
-
-/* 登录第 2 步账号 chips */
+/* 登录第 2 步账号单选组（NRadioGroup 包装） */
 .account-chips {
   display: flex;
   flex-wrap: wrap;
@@ -511,49 +363,11 @@ body {
   gap: 6px;
 }
 
-.account-chip {
-  border: 1px solid var(--ns-border);
-  background: #fff;
-  color: var(--ns-text);
-  border-radius: 20px;
-  padding: 4px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.account-chip:hover {
-  border-color: var(--ns-primary);
-  color: var(--ns-primary);
-}
-
-.account-chip.active {
-  background: var(--ns-primary);
-  border-color: var(--ns-primary);
-  color: #fff;
-}
-
-/* 审核队列 */
+/* 列表（我的应用/我的授权/审核队列/系统账号/面板摘要） */
 .review-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.review-item {
-  border: 1px solid var(--ns-border);
-  border-radius: 10px;
-  padding: 14px 16px;
-  background: #fafbfc;
-}
-
-.review-item-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 4px;
 }
 
 .review-name {
@@ -624,23 +438,11 @@ body {
   margin-bottom: 14px;
 }
 
-/* 三方角色卡片 */
+/* 卡片网格（三方角色 / 快捷入口） */
 .role-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
-}
-
-.role-card {
-  background: var(--ns-card-bg);
-  border: 1px solid var(--ns-border);
-  border-radius: 12px;
-  padding: 20px;
-  transition: box-shadow 0.15s ease;
-}
-
-.role-card:hover {
-  box-shadow: 0 2px 8px rgba(31, 35, 40, 0.1);
 }
 
 .role-icon {
@@ -648,21 +450,10 @@ body {
   margin-bottom: 10px;
 }
 
-.role-card h3 {
+.role-grid h3 {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 6px;
-}
-
-/* 快捷入口卡片（/dashboard） */
-.role-link {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-}
-
-.role-link:hover {
-  border-color: var(--ns-primary);
 }
 
 /* 三步私信验证流程 */
@@ -703,16 +494,6 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-.feature-item {
-  background: #fff;
-  border: 1px solid var(--ns-border);
-  border-radius: 20px;
-  padding: 6px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ns-text);
 }
 
 /* —— 接入文档页（/docs）—— */

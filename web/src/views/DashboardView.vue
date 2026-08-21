@@ -5,15 +5,18 @@
 // - 快捷入口卡片：我的应用 / 我的授权 / 接入文档
 // - 我的应用统计摘要：GET /api/client/list 前 3 个应用「应用名 · 今日成功 X」
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { NCard, NEmpty, NSpin, useMessage } from 'naive-ui'
 import { me, listClients, ApiError, type ClientListItem, type UserStats } from '../api'
 
 const STATS_KEY = 'ns_user_stats' // 与 LoginView 缓存 key 一致
+const router = useRouter()
+const message = useMessage()
 
 const userId = ref('')
 const userStats = ref<UserStats | null>(null)
 const topClients = ref<ClientListItem[]>([])
 const loading = ref(true)
-const error = ref('')
 
 // 读取登录流程缓存的 stats（无缓存 / 脏数据 → null）
 function readCachedStats(): UserStats | null {
@@ -58,7 +61,7 @@ onMounted(async () => {
     const resp = await listClients()
     topClients.value = resp.clients.slice(0, 3) // 统计摘要取前 3 个
   } catch (e) {
-    error.value = e instanceof ApiError ? e.message : '获取应用统计失败'
+    message.error(e instanceof ApiError ? e.message : '获取应用统计失败')
   } finally {
     loading.value = false
   }
@@ -66,14 +69,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="ns-card">
-    <h1 class="ns-card-title">欢迎回来，ID {{ userId || '—' }}</h1>
-    <p class="ns-card-sub">管理你的应用与授权</p>
-
-    <div v-if="error" class="ns-alert ns-alert-danger">{{ error }}</div>
+  <n-card class="page-card">
+    <template #header>
+      <span class="page-title">欢迎回来，ID {{ userId || '—' }}</span>
+    </template>
 
     <!-- 用户 stats 卡片（登录流程缓存；无缓存显示占位） -->
-    <h2 class="h6 mt-4 mb-3">我的信息</h2>
+    <h2 class="h6 mt-2 mb-3">我的信息</h2>
     <div v-if="userStats" class="stats-grid">
       <div class="stat-item">
         <div class="stat-value">{{ userStats.rank }}</div>
@@ -96,42 +98,49 @@ onMounted(async () => {
         <div class="stat-label">评论</div>
       </div>
     </div>
-    <div v-else class="text-muted text-center py-3">登录后更新（重新登录完成后即可查看等级/加入天数/鸡腿等）</div>
+    <n-empty
+      v-else
+      size="small"
+      description="登录后更新（重新登录完成后即可查看等级/加入天数/鸡腿等）"
+      class="py-3"
+    />
 
     <!-- 快捷入口 -->
     <h2 class="h6 mt-4 mb-3">快捷入口</h2>
     <div class="role-grid">
-      <RouterLink to="/console" class="role-card role-link">
+      <n-card hoverable @click="router.push('/console')">
         <div class="role-icon">🧩</div>
         <h3>我的应用</h3>
         <p class="mb-0 text-muted small">注册与管理第三方应用</p>
-      </RouterLink>
-      <RouterLink to="/grants" class="role-card role-link">
+      </n-card>
+      <n-card hoverable @click="router.push('/grants')">
         <div class="role-icon">🔑</div>
         <h3>我的授权</h3>
         <p class="mb-0 text-muted small">查看与撤销授权</p>
-      </RouterLink>
-      <RouterLink to="/docs" class="role-card role-link">
+      </n-card>
+      <n-card hoverable @click="router.push('/docs')">
         <div class="role-icon">📖</div>
         <h3>接入文档</h3>
         <p class="mb-0 text-muted small">第三方接入教程</p>
-      </RouterLink>
+      </n-card>
     </div>
 
     <!-- 我的应用统计摘要 -->
     <h2 class="h6 mt-4 mb-3">我的应用统计</h2>
-    <div v-if="loading" class="text-muted text-center py-3">加载中…</div>
-    <div v-else-if="topClients.length === 0" class="text-muted text-center py-3">
-      还没有应用，去「申请接入」创建一个吧。
-    </div>
-    <div v-else class="review-list">
-      <div v-for="c in topClients" :key="c.client_id" class="review-item">
-        <div class="review-item-head">
-          <span class="review-name">{{ c.client_name }}</span>
-          <code class="review-client-id">{{ c.client_id }}</code>
-        </div>
-        <div class="text-muted small">{{ c.client_name }} · 今日成功 {{ c.stats.auth_ok_today }}</div>
+    <n-spin :show="loading">
+      <n-empty
+        v-if="!loading && topClients.length === 0"
+        description="还没有应用，去「申请接入」创建一个吧。"
+      />
+      <div v-else class="review-list">
+        <n-card v-for="c in topClients" :key="c.client_id" size="small" class="review-item">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="review-name">{{ c.client_name }}</span>
+            <code class="review-client-id">{{ c.client_id }}</code>
+          </div>
+          <div class="text-muted small">{{ c.client_name }} · 今日成功 {{ c.stats.auth_ok_today }}</div>
+        </n-card>
       </div>
-    </div>
-  </div>
+    </n-spin>
+  </n-card>
 </template>

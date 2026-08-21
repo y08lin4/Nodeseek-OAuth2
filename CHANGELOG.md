@@ -2,6 +2,15 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.0] - 2026-08-21
+
+### 新增
+
+- **前端视觉升级（Naive UI）**：8 个页面全部组件化——表单/按钮/状态徽章/卡片/空态/加载/消息提示/确认对话框统一为 Naive UI 风格，手写组件级样式清理 292 行；登录向导、授权页、控制台、管理端、授权列表交互语义不变
+- **CI 发布管线**：新增 Docker 镜像工作流（GitHub Container Registry，main 分支与 `v*` 标签自动出镜像）；CI actions 升级至 Node 24 运行时
+
+[0.2.0]: https://github.com/y08lin4/Nodeseek-OAuth2/releases/tag/v0.2.0
+
 ## [0.1.0] - 2026-08-21
 
 首个可部署版本。
