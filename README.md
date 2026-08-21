@@ -2,6 +2,13 @@
 
 > 为 NodeSeek 生态打造的身份授权服务：第三方应用通过 OAuth2 接入，用户用 **私信验证码** 确认身份（全程不碰密码），系统账号 Cookie 由浏览器扩展自动保活。
 
+[![CI](https://github.com/y08lin4/Nodeseek-OAuth2/actions/workflows/ci.yml/badge.svg)](https://github.com/y08lin4/Nodeseek-OAuth2/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go&logoColor=white)](server/go.mod)
+[![Vue](https://img.shields.io/badge/Vue-3-42b883?logo=vuedotjs&logoColor=white)](web/package.json)
+[![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-4285F4?logo=googlechrome&logoColor=white)](extension/manifest.json)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 ## 项目状态 · v0.1（可部署测试）
 
 | 环节 | 状态 | 说明 |
@@ -12,7 +19,7 @@
 | Chrome 扩展 | ✅ | MV3 多槽位 Cookie 保活 + 私信填充桥，构建通过 |
 | NodeSeek API | ✅ | **真实 Cookie 实测校准**（2026-08-21）：用户信息、私信列表、pjwt 识别、CF 请求头 |
 | 集成验收 | ✅ | 三端构建 + mock 全流程冒烟 **21/21 全绿**（登录→授权→token→撤销→审核→多账号→限流→审计） |
-| 真实模式端到端 | ⚠️ | 需在能访问 nodeseek.com 的机器上按「本地真实模式测试」验证（见下文） |
+| 真实模式端到端 | ⚠️ | 上线前按 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) §3.1 验证真实私信链路 |
 | 发布 | ✅ | v0.1 已推送 GitHub（public） |
 
 ## 为什么需要它
@@ -80,32 +87,6 @@ cd ../web && npm install && npm run build
 #    /admin 用 X-Admin-Token 体验审核队列与账号管理（mock 下注册即通过，队列为空属正常）
 ```
 
-## 本地真实模式测试（模拟线上，推荐上线前跑一遍）
-
-在**你自己电脑**上验证真实链路：真实读私信核验 + 真实用户信息。
-
-```bash
-cd server
-$env:NS_SECRET_KEY = "<你的密钥>"
-$env:NS_ADMIN_TOKEN = "<你的管理令牌>"
-$env:NS_MOCK_MODE = "0"
-
-# 关键：Go 不读 Windows 系统代理，必须显式设置代理环境变量才能访问 nodeseek.com
-$env:HTTPS_PROXY = "http://127.0.0.1:7890"   # 你的 Clash 等代理地址；直连可达的机器可省略
-$env:NO_PROXY = "127.0.0.1,localhost"
-go run .
-```
-
-然后：
-
-1. 打开 `http://localhost:8080/admin`，用 `X-Admin-Token` 推送**真实系统账号 Cookie**（`POST /api/admin/cookie`，服务端自动解析 pjwt 识别归属；或直接在管理页操作）
-2. 打开登录向导，输入你的 **NodeSeek 小号 ID** → 拿到验证码
-3. 用该小号把验证码**私信发给系统账号**
-4. 回登录向导点「我已发送」→ 服务端真实读私信核验 → 登录成功
-5. 走一遍注册应用（真实模式需等级 ≥6 才能创建）→ 授权 → 换取 token → userinfo
-
-> ⚠️ 真实 Cookie 属于敏感凭据：测试完请登出/轮换；绝不提交进仓库（`.gitignore` 已覆盖）。
-
 ## 部署到服务器
 
 ```bash
@@ -169,6 +150,10 @@ docker compose up -d --build  # 构建镜像（含前端）+ 启动 :8080
 - 授权码一次性防重放、redirect_uri 白名单校验、`state` 回显
 - 安全响应头（CSP / `X-Frame-Options: DENY` / HSTS）+ 双重限流（登录链路 IP+uid，应用链路 cid+IP）+ JSONL 审计日志
 - **公开仓库警示**：严禁提交真实 Cookie/密钥/令牌；部署时替换扩展 `host_permissions` 占位域名
+
+## 参与贡献
+
+欢迎 Issue 与 PR！请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（开发环境/测试/PR 流程），接口契约以 [SPEC.md](SPEC.md) 为准。安全漏洞请走 [SECURITY.md](SECURITY.md)，社区准则见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 
 ## 免责声明
 

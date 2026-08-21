@@ -1,0 +1,47 @@
+name: Bug Report
+description: 报告一个可复现的问题
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "感谢报告！请尽量提供完整信息。**切勿**粘贴任何真实 Cookie、密钥或令牌。"
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 你使用的版本（tag 或 commit hash）
+      placeholder: "v0.1.0 / da41b01"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 问题描述
+      description: 期望行为与实际行为的差异
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 最小化复现路径（mock 模式优先）
+      placeholder: |
+        1. NS_MOCK_MODE=1 启动服务
+        2. 访问 /console 注册应用
+        3. 观察：...
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境
+      description: 操作系统、Go/Node 版本、运行方式（go run / docker）
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 已确认不包含真实凭据（Cookie/密钥/令牌）
+          required: true

@@ -54,6 +54,30 @@ node tools/calibrate_ns.mjs "<你的NodeSeek_Cookie字符串>"
 ```
 - 代码中对字段名做了宽松匹配（rank/level/grade/等级 等多候选、递归找键），但**端点 URL 必须校准**，否则核验与门槛功能不可用。校准后更新 `.env` 并重启。
 
+### 3.1 上线前真实链路验证（推荐，本机即可）
+
+先在本机用真实链路验证一遍，再上服务器：
+
+```bash
+cd server
+$env:NS_SECRET_KEY = "<你的密钥>"
+$env:NS_ADMIN_TOKEN = "<你的管理令牌>"
+$env:NS_MOCK_MODE = "0"
+
+# 关键：Go 不读 Windows 系统代理，必须显式设置代理环境变量才能访问 nodeseek.com
+$env:HTTPS_PROXY = "http://127.0.0.1:7890"   # 你的 Clash 等代理地址；直连可达的机器可省略
+$env:NO_PROXY = "127.0.0.1,localhost"
+go run .
+```
+
+1. 打开 `http://localhost:8080/admin`，推送**真实系统账号 Cookie**（管理页操作或 `POST /api/admin/cookie`，服务端自动解析 pjwt 识别归属）
+2. 打开登录向导，输入你的 **NodeSeek 小号 ID** → 拿到验证码
+3. 用该小号把验证码**私信发给系统账号**
+4. 回登录向导点「我已发送」→ 服务端真实读私信核验 → 登录成功
+5. 走一遍注册应用（真实模式需等级 ≥6 才能创建）→ 授权 → 换取 token → userinfo
+
+> ⚠️ 真实 Cookie 属于敏感凭据：测试完请登出/轮换；绝不提交进仓库（`.gitignore` 已覆盖）。
+
 ## 4. 扩展（NSAuth2 Cookie Keeper）部署
 
 1. `cd extension && npm install && npm run build`
