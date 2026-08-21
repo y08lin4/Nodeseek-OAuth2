@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 根组件：全局 Naive UI Provider（zhCN + message + dialog）+ 导航（登录态探测/退出）+ 布局容器 + 页脚
-import { onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   NConfigProvider,
   NMessageProvider,
@@ -15,7 +15,9 @@ import { themeOverrides } from './theme'
 import NSLogo from './components/NSLogo.vue'
 
 const route = useRoute()
+const router = useRouter()
 const userId = ref('') // 已登录时为 NS 数字 ID，空 = 未登录
+const showFloatLogin = ref(false) // 未登录且滚动超过 320px 时，顶栏浮现登录按钮
 
 // 探测登录态：GET /api/me（401/网络错误均视为未登录，导航不报错）
 async function refreshMe() {
@@ -37,7 +39,21 @@ async function handleLogout() {
   userId.value = ''
 }
 
-onMounted(refreshMe)
+// 滚动监听：未登录时滚动超过 320px 显示顶栏登录按钮
+function handleScroll() {
+  showFloatLogin.value = window.scrollY > 320
+}
+
+onMounted(() => {
+  refreshMe()
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  handleScroll()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
+
 // 路由变化后重新探测（登录/退出后导航状态保持正确）
 watch(() => route.fullPath, refreshMe)
 </script>
@@ -52,10 +68,16 @@ watch(() => route.fullPath, refreshMe)
             <div class="app-nav-inner">
               <RouterLink to="/" class="app-brand"><NSLogo :size="28" /></RouterLink>
               <div class="app-nav-right">
-                <!-- 接入文档：公开可见 -->
-                <router-link to="/docs" custom v-slot="{ navigate }"><n-button text @click="navigate">接入文档</n-button></router-link>
-                <router-link v-if="!userId" to="/login" custom v-slot="{ navigate }"><n-button type="primary" size="small" @click="navigate">登录</n-button></router-link>
-                <template v-else>
+                <!-- 浮动登录按钮：未登录且滚动后出现 -->
+                <n-button
+                  v-if="!userId && showFloatLogin"
+                  type="primary"
+                  size="small"
+                  @click="router.push('/login')"
+                >
+                  登录
+                </n-button>
+                <template v-else-if="userId">
                   <!-- 面板与我的授权入口：仅登录后显示 -->
                   <router-link to="/dashboard" custom v-slot="{ navigate }"><n-button text @click="navigate">面板</n-button></router-link>
                   <router-link to="/grants" custom v-slot="{ navigate }"><n-button text @click="navigate">我的授权</n-button></router-link>
@@ -71,7 +93,7 @@ watch(() => route.fullPath, refreshMe)
           </main>
 
           <footer class="app-footer ns-text-center">
-            Nodeseek OAuth2 授权服务 · 私信验证码确认账号归属
+            Nodeseek 非官方 OAuth2 授权服务 · 私信验证码确认账号归属
           </footer>
         </div>
       </n-dialog-provider>

@@ -1,4 +1,4 @@
-// Nodeseek OAuth2 授权服务后端入口。
+// Nodeseek 非官方 OAuth2 授权服务后端入口。
 //
 // 纯标准库实现：配置解析、JSON 文件存储、会话、私信核验、邮件通知与 HTTP 路由。
 package main

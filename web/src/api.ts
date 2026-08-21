@@ -341,31 +341,44 @@ export function getClient(clientId: string): Promise<ClientInfo> {
   return request<ClientInfo>(`/api/oauth/client?client_id=${encodeURIComponent(clientId)}`)
 }
 
-/** GET /api/admin/status：管理页查询系统 Cookie 状态 */
-export function getAdminStatus(adminToken: string): Promise<AdminStatus> {
+/** GET /api/admin/status：管理页查询系统 Cookie 状态（凭管理会话，401 即未登录） */
+export function getAdminStatus(adminToken?: string): Promise<AdminStatus> {
   return request<AdminStatus>('/api/admin/status', {
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
+}
+
+/** POST /api/admin/login：验证管理令牌并签发 httpOnly 管理会话 Cookie */
+export function adminLogin(token: string): Promise<LogoutResp> {
+  return request<LogoutResp>('/api/admin/login', {
+    method: 'POST',
+    body: { token },
+  })
+}
+
+/** POST /api/admin/logout：登出，清除管理会话 Cookie */
+export function adminLogout(): Promise<LogoutResp> {
+  return request<LogoutResp>('/api/admin/logout', { method: 'POST' })
 }
 
 /** POST /api/admin/cookie：更新/新增系统账号 Cookie（account_id 可选：AUTO_DETECT=1 时服务端忽略并自动识别） */
 export function updateAdminCookie(
-  adminToken: string,
   cookie: string,
   accountId?: string,
+  adminToken?: string,
 ): Promise<AdminCookieResp> {
   return request<AdminCookieResp>('/api/admin/cookie', {
     method: 'POST',
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
     body: accountId ? { cookie, account_id: accountId } : { cookie },
   })
 }
 
 /** POST /api/admin/test-mail：发送测试邮件（SMTP 未配置 → 400「SMTP 未配置」） */
-export function testMail(adminToken: string): Promise<TestMailResp> {
+export function testMail(adminToken?: string): Promise<TestMailResp> {
   return request<TestMailResp>('/api/admin/test-mail', {
     method: 'POST',
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }
 
@@ -495,18 +508,18 @@ export interface ReviewResp {
   client: OAuthClient
 }
 
-/** GET /api/admin/reviews：待审核队列（管理端，X-Admin-Token） */
-export function listReviews(adminToken: string): Promise<ReviewsResp> {
+/** GET /api/admin/reviews：待审核队列（管理端，凭会话） */
+export function listReviews(adminToken?: string): Promise<ReviewsResp> {
   return request<ReviewsResp>('/api/admin/reviews', {
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }
 
 /** POST /api/admin/review：审核操作（app/pause/resume/delete 通过或拒绝） */
-export function reviewAction(adminToken: string, req: ReviewActionReq): Promise<ReviewResp> {
+export function reviewAction(req: ReviewActionReq, adminToken?: string): Promise<ReviewResp> {
   return request<ReviewResp>('/api/admin/review', {
     method: 'POST',
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
     body: req,
   })
 }
@@ -514,39 +527,39 @@ export function reviewAction(adminToken: string, req: ReviewActionReq): Promise<
 // —— 管理端系统账号（/admin） ——
 
 /** GET /api/admin/accounts：系统账号列表（不含 Cookie 明文） */
-export function listAccounts(adminToken: string): Promise<SysAccountsResp> {
+export function listAccounts(adminToken?: string): Promise<SysAccountsResp> {
   return request<SysAccountsResp>('/api/admin/accounts', {
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }
 
 /** POST /api/admin/accounts：手动新增系统账号 */
-export function addAccount(adminToken: string, req: AddAccountReq): Promise<SysAccountResp> {
+export function addAccount(req: AddAccountReq, adminToken?: string): Promise<SysAccountResp> {
   return request<SysAccountResp>('/api/admin/accounts', {
     method: 'POST',
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
     body: req,
   })
 }
 
 /** PATCH /api/admin/accounts/{id}：调整优先级 / 启用状态 */
 export function patchAccount(
-  adminToken: string,
   accountId: string,
   data: { priority?: number; enabled?: boolean },
+  adminToken?: string,
 ): Promise<SysAccountResp> {
   return request<SysAccountResp>(`/api/admin/accounts/${encodeURIComponent(accountId)}`, {
     method: 'PATCH',
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
     body: data,
   })
 }
 
 /** DELETE /api/admin/accounts/{id}：删除系统账号（至少保留 1 个，否则 400） */
-export function deleteAccount(adminToken: string, accountId: string): Promise<LogoutResp> {
+export function deleteAccount(accountId: string, adminToken?: string): Promise<LogoutResp> {
   return request<LogoutResp>(`/api/admin/accounts/${encodeURIComponent(accountId)}`, {
     method: 'DELETE',
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }
 
@@ -609,44 +622,44 @@ export interface AdminAuditResp {
   events: AuditEvent[]
 }
 
-/** GET /api/admin/clients：全量应用列表（管理端，X-Admin-Token） */
-export function listAdminClients(adminToken: string): Promise<AdminClientsResp> {
+/** GET /api/admin/clients：全量应用列表（管理端，凭会话） */
+export function listAdminClients(adminToken?: string): Promise<AdminClientsResp> {
   return request<AdminClientsResp>('/api/admin/clients', {
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }
 
-/** GET /api/admin/stats：应用统计计数（管理端，X-Admin-Token） */
-export function getAdminStats(adminToken: string): Promise<AdminStatsResp> {
+/** GET /api/admin/stats：应用统计计数（管理端，凭会话） */
+export function getAdminStats(adminToken?: string): Promise<AdminStatsResp> {
   return request<AdminStatsResp>('/api/admin/stats', {
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }
 
-/** GET /api/admin/audit：审计日志（管理端，X-Admin-Token；limit 1-200，默认 50） */
-export function listAudit(adminToken: string, limit = 50): Promise<AdminAuditResp> {
+/** GET /api/admin/audit：审计日志（管理端，凭会话；limit 1-200，默认 50） */
+export function listAudit(limit = 50, adminToken?: string): Promise<AdminAuditResp> {
   return request<AdminAuditResp>(`/api/admin/audit?limit=${limit}`, {
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }
 
-/** PATCH /api/client/{id}：管理端修改应用（暂停=status:paused / 恢复=status:approved / 调整 token_ttl；X-Admin-Token） */
+/** PATCH /api/client/{id}：管理端修改应用（暂停=status:paused / 恢复=status:approved / 调整 token_ttl；凭会话） */
 export function patchAdminClient(
   clientId: string,
   data: { disabled?: boolean; token_ttl?: number; status?: ClientStatus },
-  adminToken: string,
+  adminToken?: string,
 ): Promise<PatchClientResp> {
   return request<PatchClientResp>(`/api/client/${encodeURIComponent(clientId)}`, {
     method: 'PATCH',
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
     body: data,
   })
 }
 
-/** DELETE /api/client/{id}：管理端强制删除应用（X-Admin-Token） */
-export function deleteAdminClient(clientId: string, adminToken: string): Promise<LogoutResp> {
+/** DELETE /api/client/{id}：管理端强制删除应用（凭会话） */
+export function deleteAdminClient(clientId: string, adminToken?: string): Promise<LogoutResp> {
   return request<LogoutResp>(`/api/client/${encodeURIComponent(clientId)}`, {
     method: 'DELETE',
-    headers: { 'X-Admin-Token': adminToken },
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }

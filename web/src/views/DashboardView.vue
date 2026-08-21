@@ -8,6 +8,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NCard, NEmpty, NSpin, useMessage } from 'naive-ui'
 import { me, listClients, ApiError, type ClientListItem, type UserStats } from '../api'
+import { Blocks, KeyRound, BookOpen } from 'lucide-vue-next'
 
 const STATS_KEY = 'ns_user_stats' // 与 LoginView 缓存 key 一致
 const router = useRouter()
@@ -109,17 +110,17 @@ onMounted(async () => {
     <h2 class="ns-h6 ns-mt-4 ns-mb-3">快捷入口</h2>
     <div class="role-grid">
       <n-card hoverable @click="router.push('/console')">
-        <div class="role-icon">🧩</div>
+        <div class="role-icon"><Blocks :size="20" :stroke-width="1.8" /></div>
         <h3>我的应用</h3>
         <p class="ns-mb-0 ns-text-muted ns-small">注册与管理第三方应用</p>
       </n-card>
       <n-card hoverable @click="router.push('/grants')">
-        <div class="role-icon">🔑</div>
+        <div class="role-icon"><KeyRound :size="20" :stroke-width="1.8" /></div>
         <h3>我的授权</h3>
         <p class="ns-mb-0 ns-text-muted ns-small">查看与撤销授权</p>
       </n-card>
       <n-card hoverable @click="router.push('/docs')">
-        <div class="role-icon">📖</div>
+        <div class="role-icon"><BookOpen :size="20" :stroke-width="1.8" /></div>
         <h3>接入文档</h3>
         <p class="ns-mb-0 ns-text-muted ns-small">第三方接入教程</p>
       </n-card>

@@ -37,8 +37,12 @@ const (
 	verificationCodeExpirySeconds = 600              // 验证码有效期（秒）
 	verificationCodePrefix        = "NS_AUTH_"       // 验证码前缀
 	authCodeTTL                   = 10 * time.Minute // 授权码有效期
-	placeholderHTML               = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>Nodeseek OAuth2 授权服务</title></head><body><h1>Nodeseek OAuth2 授权服务</h1><p>后端已启动。前端尚未构建（web/dist 不存在），请先构建 web/ 或直接调用 API。</p></body></html>"
+	adminSessionTTL               = 24 * time.Hour   // 管理会话有效期
+	placeholderHTML               = "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>Nodeseek 非官方 OAuth2 授权服务</title></head><body><h1>Nodeseek 非官方 OAuth2 授权服务</h1><p>后端已启动。前端尚未构建（web/dist 不存在），请先构建 web/ 或直接调用 API。</p></body></html>"
 )
+
+// AdminCookieName 管理会话 Cookie 名（登录后浏览器携带，checkAdmin 优先校验）。
+const AdminCookieName = "ns_admin_session"
 
 // API 持有各 handler 共享的依赖。
 type API struct {
@@ -54,11 +58,14 @@ type API struct {
 	mu            sync.Mutex
 	lastTestAt    time.Time            // 最近一次测试邮件成功时间
 	accountAlerts map[string]time.Time // 各账号最近一次 Cookie 告警时间（独立冷却 60min）
+
+	sessionsMu sync.Mutex
+	adminSess  map[string]time.Time // 管理会话：会话ID → 创建时间（TTL 24h，启动时清空）
 }
 
 // NewRouter 组装路由（Go 1.22+ 方法路由），全部路由外包安全头中间件。
 func NewRouter(cfg *config.Config, st *store.Store, ns *nodeseek.Client, key [32]byte, mail *mailer.Mailer, stats *stats.Stats, aud *audit.Logger, limits *RateLimits) http.Handler {
-	a := &API{cfg: cfg, store: st, ns: ns, key: key, mail: mail, stats: stats, audit: aud, limits: limits, accountAlerts: map[string]time.Time{}}
+	a := &API{cfg: cfg, store: st, ns: ns, key: key, mail: mail, stats: stats, audit: aud, limits: limits, accountAlerts: map[string]time.Time{}, adminSess: map[string]time.Time{}}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/config", a.handleConfig)
@@ -80,6 +87,8 @@ func NewRouter(cfg *config.Config, st *store.Store, ns *nodeseek.Client, key [32
 	mux.HandleFunc("POST /api/grants/{client_id}/revoke", a.handleGrantRevoke)
 	mux.HandleFunc("POST /api/logout", a.handleLogout)
 	mux.HandleFunc("GET /api/me", a.handleMe)
+	mux.HandleFunc("POST /api/admin/login", a.handleAdminLogin)
+	mux.HandleFunc("POST /api/admin/logout", a.handleAdminLogout)
 	mux.HandleFunc("POST /api/admin/cookie", a.handleAdminCookie)
 	mux.HandleFunc("GET /api/admin/status", a.handleAdminStatus)
 	mux.HandleFunc("GET /api/admin/accounts", a.handleAdminAccountsList)
@@ -172,15 +181,46 @@ func (a *API) currentSession(r *http.Request) *auth.Session {
 	return sess
 }
 
-// checkAdmin 校验 X-Admin-Token（常量时间比较）；未设置令牌时一律 403。
+// checkAdmin 校验管理鉴权（两种方式任一通过即可）：
+//   a) 请求 Cookie ns_admin_session 命中会话 map 且未过期；
+//   b) X-Admin-Token 头与 cfg.AdminToken 常量时间相等（保留浏览器扩展调用路径）；
+//   c) 都不满足 → 401。
+// 未设置 NS_ADMIN_TOKEN 时管理系统未启用，一律 403。
 func (a *API) checkAdmin(w http.ResponseWriter, r *http.Request) bool {
 	if a.cfg.AdminToken == "" {
 		writeError(w, http.StatusForbidden, "管理接口未启用（未设置 NS_ADMIN_TOKEN）")
 		return false
 	}
-	got := r.Header.Get("X-Admin-Token")
-	if subtle.ConstantTimeCompare([]byte(a.cfg.AdminToken), []byte(got)) != 1 {
-		writeError(w, http.StatusForbidden, "无效的管理令牌")
+	// a) 会话 Cookie。
+	if c, err := r.Cookie(AdminCookieName); err == nil && c.Value != "" {
+		if a.validAdminSession(c.Value) {
+			return true
+		}
+	}
+	// b) X-Admin-Token 头（浏览器扩展 MV3 路径）。
+	if got := r.Header.Get("X-Admin-Token"); got != "" &&
+		subtle.ConstantTimeCompare([]byte(a.cfg.AdminToken), []byte(got)) == 1 {
+		return true
+	}
+	// c) 都未通过。
+	writeError(w, http.StatusUnauthorized, "管理鉴权失败（需登录或提供 X-Admin-Token）")
+	return false
+}
+
+// validAdminSession 校验会话 ID 是否有效且未过期（失效项同时清除）。并发安全。
+func (a *API) validAdminSession(id string) bool {
+	a.sessionsMu.Lock()
+	defer a.sessionsMu.Unlock()
+	if id == "" {
+		return false
+	}
+	now := time.Now()
+	createdAt, ok := a.adminSess[id]
+	if !ok {
+		return false
+	}
+	if now.Sub(createdAt) > adminSessionTTL {
+		delete(a.adminSess, id)
 		return false
 	}
 	return true
@@ -1317,6 +1357,67 @@ func (a *API) handleMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"success": true, "user_id": sess.UserID})
+}
+
+// handleAdminLogin POST /api/admin/login（JSON {"token":"..."}）管理端登录。
+// 成功 → 200 + Set-Cookie ns_admin_session；失败 → 401；登录失败限流（每 IP 10/min）。
+func (a *API) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string `json:"token"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "请求体格式错误")
+		return
+	}
+	ip := remoteIP(r)
+
+	// 登录失败限流（每 IP 每分钟 10 次）。
+	if !a.limits.adminLoginIP.Allow("ip:" + ip) {
+		a.denyRate(w, ip, "", "", "admin.login")
+		return
+	}
+
+	if a.cfg.AdminToken == "" || req.Token == "" ||
+		subtle.ConstantTimeCompare([]byte(a.cfg.AdminToken), []byte(req.Token)) != 1 {
+		a.audit.Eventf("admin.login.fail", ip, "", "", "令牌错误")
+		writeError(w, http.StatusUnauthorized, "管理令牌错误")
+		return
+	}
+
+	id := randomHex(32, false)
+	a.sessionsMu.Lock()
+	a.adminSess[id] = time.Now()
+	a.sessionsMu.Unlock()
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     AdminCookieName,
+		Value:    id,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		// Secure 不加：nginx 层 https；浏览器即便 https 也无碍。
+	})
+	a.audit.Eventf("admin.login.ok", ip, "", "", "")
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+// handleAdminLogout POST /api/admin/logout 管理端登出：删除会话并清 Cookie。
+func (a *API) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie(AdminCookieName); err == nil && c.Value != "" {
+		a.sessionsMu.Lock()
+		delete(a.adminSess, c.Value)
+		a.sessionsMu.Unlock()
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     AdminCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+	a.audit.Eventf("admin.logout", remoteIP(r), "", "", "")
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 
 // handleClientPatch PATCH /api/client/{client_id}

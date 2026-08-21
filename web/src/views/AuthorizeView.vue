@@ -9,6 +9,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { NCard, NAlert, NTag, NButton, NSpin } from 'naive-ui'
 import { getClient, ApiError, type ClientInfo } from '../api'
+import { ShieldBan } from 'lucide-vue-next'
 
 const route = useRoute()
 
@@ -162,7 +163,7 @@ async function submitDecision(approve: boolean) {
 
     <!-- 门槛未满足（403）：错误面板，不显示同意/拒绝按钮 -->
     <div v-if="gateError" class="gate-error-panel ns-mt-2">
-      <div class="gate-error-icon" aria-hidden="true">⛔</div>
+      <div class="gate-error-icon" aria-hidden="true"><ShieldBan :size="30" :stroke-width="1.6" /></div>
       <h2 class="gate-error-title">无法完成授权</h2>
       <p class="gate-error-msg">{{ gateError }}</p>
       <p class="ns-text-muted ns-small ns-mb-4">

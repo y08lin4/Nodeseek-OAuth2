@@ -18,6 +18,7 @@ type RateLimits struct {
 	decisionCID  *ratelimit.Limiter // /oauth/authorize/decision 的 cid 键：30/min
 	tokenCID     *ratelimit.Limiter // /oauth/token 的 cid 键：60/min
 	appIP        *ratelimit.Limiter // 应用链路的 ip 键：SPEC 未给阈值，取 120/min 兜底（TODO）
+	adminLoginIP *ratelimit.Limiter // /api/admin/login 的 ip 键：10/min（登录失败限流）
 }
 
 // NewRateLimits 创建全部限流器；disabled=true 时全部放行（NS_RATE_LIMIT_DISABLED=1）。
@@ -31,11 +32,12 @@ func NewRateLimits(disabled bool) *RateLimits {
 		decisionCID:  ratelimit.New(30, time.Minute),
 		tokenCID:     ratelimit.New(60, time.Minute),
 		appIP:        ratelimit.New(120, time.Minute),
+		adminLoginIP: ratelimit.New(10, time.Minute),
 	}
 	if disabled {
 		for _, l := range []*ratelimit.Limiter{
 			rl.verifyIP, rl.verifyUID, rl.confirmIP, rl.confirmUID,
-			rl.authorizeCID, rl.decisionCID, rl.tokenCID, rl.appIP,
+			rl.authorizeCID, rl.decisionCID, rl.tokenCID, rl.appIP, rl.adminLoginIP,
 		} {
 			l.SetDisabled(true)
 		}

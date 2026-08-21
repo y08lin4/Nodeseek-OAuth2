@@ -426,18 +426,20 @@ body {
   gap: 40px;
 }
 
-/* Hero：浅底 + 24px 微网格纹理 + 底部品牌绿渐变细线 */
+/* Hero：全屏首屏（min-height 顶栏 56px + 1px 边框），浅网格叠加 + 底部品牌绿渐变细线 */
 .portal-hero {
   position: relative;
-  background-color: var(--ns-bg);
-  background-image:
-    linear-gradient(rgba(51, 51, 51, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(51, 51, 51, 0.045) 1px, transparent 1px);
-  background-size: 24px 24px;
-  border: 1px solid var(--ns-border);
-  border-radius: 6px;
-  padding: 48px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  min-height: calc(100vh - 57px);
+  padding: 48px 24px;
+  background-image:
+    linear-gradient(rgba(51, 51, 51, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 51, 51, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
   overflow: hidden;
 }
 
@@ -456,7 +458,7 @@ body {
 }
 
 .portal-title {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   margin-bottom: 12px;
   color: var(--ns-text);
@@ -502,6 +504,18 @@ body {
   line-height: 1.4;
 }
 
+/* 首页区块（hero 下方内容区，如接入文档摘要） */
+.portal-section {
+  padding-top: 8px;
+}
+
+/* 文档摘要底部入口 */
+.docs-more {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
 /* 卡片网格（三方角色 / 快捷入口） */
 .role-grid {
   display: grid;
@@ -538,63 +552,6 @@ body {
   font-weight: 600;
   margin-bottom: 6px;
   color: var(--ns-text);
-}
-
-/* 三步私信验证流程：绿圆徽标 + 步间分割线 */
-.flow-steps {
-  display: flex;
-  align-items: stretch;
-  flex-wrap: wrap;
-  gap: 10px;
-  background: var(--ns-card-bg);
-  border: 1px solid var(--ns-border);
-  border-radius: 6px;
-  padding: 20px;
-}
-
-.flow-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  flex: 1;
-  min-width: 180px;
-}
-
-.flow-step:not(:first-child) {
-  border-left: 1px solid var(--ns-border);
-  padding-left: 24px;
-}
-
-.flow-num {
-  width: 26px;
-  height: 26px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--ns-primary);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 26px;
-  text-align: center;
-  margin-top: 1px;
-}
-
-.flow-arrow {
-  display: none;
-}
-
-/* 特性：品牌绿浅底圆角标签云 */
-.feature-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.feature-list .n-tag {
-  background: var(--ns-primary-soft);
-  border-color: transparent;
-  color: var(--ns-primary-hover);
-  border-radius: 4px;
 }
 
 /* —— 接入文档页（/docs）—— */

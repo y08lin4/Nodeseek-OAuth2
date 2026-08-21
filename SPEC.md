@@ -240,7 +240,7 @@ server/
   - `/admin` 管理页：输入并保存 Admin Token（localStorage，key `ns_admin_token`）；展示 `GET /api/admin/status`（Cookie 是否设置、更新时间、mock 模式、**邮件配置状态**：mail.configured / mail.report_time / mail.last_test_at）；表单更新 Cookie → `POST /api/admin/cookie`（**账号选择下拉：现有账号或「自动识别」，自动识别时服务端探测归属**）；**「发送测试邮件」按钮 → `POST /api/admin/test-mail`**（成功/失败提示 message）；**审核队列区块**：`GET /api/admin/reviews` 列出待审核项（类型/应用名/owner/详情），每项「通过」「拒绝」按钮 → `POST /api/admin/review`（提示 reason 可选输入）；**系统账号区块**：`GET /api/admin/accounts` 列表（账号/名称/优先级/启用开关/更新时间/最近错误），支持新增（POST）、调优先级与启停（PATCH）、删除（DELETE）；显示「新提交邮件通知」状态（来自 /api/config 或 status，如 NS_REVIEW_EMAIL_NOTIFY 状态提示）。
 - `src/api.ts`：类型化 API 客户端（Config/VerifyResp/ConfirmResp/ClientInfo/RegisterResp/ClientList/AdminStatus 等类型），错误统一取 `data.message` 抛给组件展示。
 - `vite.config.ts`：dev server proxy：`/api`、`/oauth` → `http://localhost:8080`。
-- 页面标题「Nodeseek OAuth2 授权服务」。组件用 `<script setup lang="ts">`。
+- 页面标题「Nodeseek 非官方 OAuth2 授权服务」。组件用 `<script setup lang="ts">`。
 
 ## 5. 扩展规格（extension/）
 

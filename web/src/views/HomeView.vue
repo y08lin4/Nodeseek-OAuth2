@@ -1,14 +1,15 @@
 <script setup lang="ts">
-// 门户首页（公开）：hero + 三方角色 + 三步私信验证流程 + 特性列表 + CTA
-// CTA 随登录态切换：已登录显示「进入面板」→ /dashboard
+// 门户首页（公开）：全屏 Hero + 接入文档摘要区
+// Hero CTA 随登录态切换；文档摘要锚点滚动到 #ns-docs
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { NCard, NTag, NButton } from 'naive-ui'
 import { me } from '../api'
 import NSLogo from '../components/NSLogo.vue'
-import { ShieldCheck, Puzzle, UserRound } from 'lucide-vue-next'
+import { Blocks, Code, UserCheck } from 'lucide-vue-next'
 
+const router = useRouter()
 const loggedIn = ref(false)
-// 副标题标签
 const heroTags = ['OAuth2 标准', '私信验证码', '多账号冗余']
 
 onMounted(async () => {
@@ -19,82 +20,66 @@ onMounted(async () => {
     loggedIn.value = false
   }
 })
+
+// 锚点滚动到接入文档摘要区
+function scrollToDocs() {
+  document.getElementById('ns-docs')?.scrollIntoView({ behavior: 'smooth' })
+}
 </script>
 
 <template>
   <div class="portal">
-    <!-- Hero -->
+    <!-- Hero：全屏首屏 -->
     <section class="portal-hero">
       <div class="portal-logo">
-        <NSLogo :size="56" with-text />
+        <NSLogo :size="64" with-text />
       </div>
-      <h1 class="portal-title">Nodeseek OAuth2 授权服务</h1>
+      <h1 class="portal-title">Nodeseek 非官方 OAuth2 授权服务</h1>
       <p class="portal-sub">用 NodeSeek 账号安全登录第三方应用，私信验证码确认归属，全程无需密码</p>
       <div class="portal-tags">
         <n-tag v-for="t in heroTags" :key="t" round>{{ t }}</n-tag>
       </div>
       <div class="portal-cta">
-        <router-link v-if="!loggedIn" to="/login" custom v-slot="{ navigate }"><n-button type="primary" size="large" @click="navigate">登录 Nodeseek 账号</n-button></router-link>
-        <router-link v-else to="/dashboard" custom v-slot="{ navigate }"><n-button type="primary" size="large" @click="navigate">进入面板</n-button></router-link>
-        <router-link to="/docs" custom v-slot="{ navigate }"><n-button size="large" @click="navigate">接入文档</n-button></router-link>
-        <router-link to="/console" custom v-slot="{ navigate }"><n-button size="large" @click="navigate">申请接入</n-button></router-link>
+        <n-button v-if="!loggedIn" type="primary" size="large" @click="router.push('/login')">
+          登录 Nodeseek 账号
+        </n-button>
+        <n-button v-else type="primary" size="large" @click="router.push('/dashboard')">
+          进入面板
+        </n-button>
+        <n-button size="large" @click="scrollToDocs">接入文档</n-button>
+        <n-button size="large" @click="router.push('/console')">申请接入</n-button>
       </div>
       <div class="portal-stats">已接入应用 · 今日授权</div>
     </section>
 
-    <!-- 三方角色 -->
-    <section class="portal-section">
-      <h2 class="portal-h2">三方角色</h2>
+    <!-- 接入文档摘要 -->
+    <section id="ns-docs" class="portal-section">
+      <h2 class="portal-h2">接入文档</h2>
       <div class="role-grid">
         <n-card>
-          <div class="role-icon" aria-hidden="true"><ShieldCheck :size="20" :stroke-width="1.8" /></div>
-          <h3>授权服务方</h3>
+          <div class="role-icon" aria-hidden="true"><Blocks :size="20" :stroke-width="1.8" /></div>
+          <h3>注册应用</h3>
           <p class="ns-mb-0 ns-text-muted ns-small">
-            维护系统账号，通过私信验证码确认账号归属，为第三方应用签发授权与令牌。
+            在「申请接入」创建应用，获取 client_id / client_secret。
           </p>
         </n-card>
         <n-card>
-          <div class="role-icon" aria-hidden="true"><Puzzle :size="20" :stroke-width="1.8" /></div>
-          <h3>接入的应用</h3>
+          <div class="role-icon" aria-hidden="true"><Code :size="20" :stroke-width="1.8" /></div>
+          <h3>集成 OAuth</h3>
           <p class="ns-mb-0 ns-text-muted ns-small">
-            提交应用申请，审核通过后走标准 OAuth2 授权码流程，换取一次性访问令牌。
+            标准授权码流程，接入约 10 分钟。
           </p>
         </n-card>
         <n-card>
-          <div class="role-icon" aria-hidden="true"><UserRound :size="20" :stroke-width="1.8" /></div>
-          <h3>用户</h3>
+          <div class="role-icon" aria-hidden="true"><UserCheck :size="20" :stroke-width="1.8" /></div>
+          <h3>用户授权</h3>
           <p class="ns-mb-0 ns-text-muted ns-small">
-            用 NS 数字 ID 登录，验证码经私信确认，授权状态随时可查、可撤销。
+            私信验证码确认归属，授权后可随时撤销。
           </p>
         </n-card>
       </div>
-    </section>
-
-    <!-- 三步私信验证流程 -->
-    <section class="portal-section">
-      <h2 class="portal-h2">三步私信验证</h2>
-      <div class="flow-steps">
-        <div class="flow-step">
-          <span class="flow-num">1</span>
-          <div>
-            <strong>输入 NS ID</strong>
-            <p class="ns-mb-0 ns-text-muted ns-small">纯数字，取自个人主页 URL</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <span class="flow-num">2</span>
-          <div>
-            <strong>私信验证码</strong>
-            <p class="ns-mb-0 ns-text-muted ns-small">发给任一系统账号</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <span class="flow-num">3</span>
-          <div>
-            <strong>确认登录</strong>
-            <p class="ns-mb-0 ns-text-muted ns-small">服务端核验私信后完成</p>
-          </div>
-        </div>
+      <div class="docs-more">
+        <n-button quaternary @click="router.push('/docs')">查看完整文档 →</n-button>
       </div>
     </section>
   </div>

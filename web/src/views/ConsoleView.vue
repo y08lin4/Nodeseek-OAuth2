@@ -267,7 +267,7 @@ onMounted(async () => {
     <!-- 注册成功：一次性凭据展示 -->
     <n-card v-if="credentials" size="small" class="ns-mt-3 ns-mb-4">
       <n-alert type="warning" :show-icon="true" class="ns-mb-3">
-        ⚠ client_secret 仅显示一次，请立即保存，关闭后无法再次查看
+        client_secret 仅显示一次，请立即保存，关闭后无法再次查看
       </n-alert>
       <div class="credential-row">
         <span class="credential-label">Client ID</span>

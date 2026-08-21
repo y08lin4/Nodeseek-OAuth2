@@ -1,4 +1,4 @@
-# NSAuth2 — NodeSeek 账号 OAuth2 授权服务
+# NSAuth2 — NodeSeek 非官方 OAuth2 授权服务
 
 > 为 NodeSeek 生态打造的身份授权服务：第三方应用通过 OAuth2 接入，用户用 **私信验证码** 确认身份（全程不碰密码），系统账号 Cookie 由浏览器扩展自动保活。
 
