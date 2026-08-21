@@ -13,7 +13,7 @@ import {
   useMessage,
   useDialog,
 } from 'naive-ui'
-import { RefreshCw, ExternalLink, Info } from 'lucide-vue-next'
+import { RefreshCw, ExternalLink, Info, Pause, Play, Trash2 } from 'lucide-vue-next'
 import {
   listAdminClients,
   patchAdminClient,
@@ -207,16 +207,16 @@ onMounted(loadClients)
               </td>
               <td class="tbl-num">{{ c.min_rank > 0 ? `≥ ${c.min_rank}` : '不限' }}</td>
               <td class="tbl-num">{{ ttlToMinutes(c.token_ttl) }} 分钟</td>
-              <td class="tbl-num">
-                成功 {{ c.stats.auth_ok_today }} / 失败 {{ c.stats.auth_fail_today }}
+              <td class="tbl-num" :title="`成功 ${c.stats.auth_ok_today} / 失败 ${c.stats.auth_fail_today}`">
+                {{ c.stats.auth_ok_today }} / {{ c.stats.auth_fail_today }}
               </td>
-              <td class="tbl-num">
-                成功 {{ c.stats.auth_ok_total }} / 失败 {{ c.stats.auth_fail_total }}
+              <td class="tbl-num" :title="`成功 ${c.stats.auth_ok_total} / 失败 ${c.stats.auth_fail_total}`">
+                {{ c.stats.auth_ok_total }} / {{ c.stats.auth_fail_total }}
               </td>
               <td class="tbl-act">
                 <div class="admin-btn-group app-actions">
                   <n-button size="tiny" text :loading="clientActingId === c.client_id" @click="openDetail(c)" title="详情">
-                    <template #icon><Info :size="14" /></template>详情
+                    <template #icon><Info :size="15" /></template>
                   </n-button>
                   <n-button
                     v-if="c.status === 'approved'"
@@ -225,8 +225,9 @@ onMounted(loadClients)
                     text
                     :disabled="!!clientActingId"
                     @click="handlePause(c)"
+                    title="暂停"
                   >
-                    暂停
+                    <template #icon><Pause :size="15" /></template>
                   </n-button>
                   <n-button
                     v-if="c.status === 'paused'"
@@ -235,14 +236,15 @@ onMounted(loadClients)
                     text
                     :disabled="!!clientActingId"
                     @click="handleResume(c)"
+                    title="恢复"
                   >
-                    恢复
+                    <template #icon><Play :size="15" /></template>
                   </n-button>
                   <n-button size="tiny" text type="primary" :disabled="!!clientActingId" @click="handleResetSecret(c)" title="重置密钥">
-                    <template #icon><RefreshCw :size="14" /></template>重置密钥
+                    <template #icon><RefreshCw :size="15" /></template>
                   </n-button>
-                  <n-button size="tiny" text type="error" :disabled="!!clientActingId" @click="handleForceDelete(c)">
-                    删除
+                  <n-button size="tiny" text type="error" :disabled="!!clientActingId" @click="handleForceDelete(c)" title="删除">
+                    <template #icon><Trash2 :size="15" /></template>
                   </n-button>
                 </div>
               </td>
@@ -345,7 +347,7 @@ onMounted(loadClients)
 }
 
 .app-actions {
-  flex-wrap: wrap;
+  /* 继承全局 .admin-btn-group 的 nowrap：操作按钮恒横排，不竖排堆叠 */
 }
 
 .app-name {
