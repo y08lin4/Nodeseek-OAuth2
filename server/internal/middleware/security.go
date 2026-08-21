@@ -7,7 +7,7 @@ import (
 )
 
 // SecurityHeaders 为所有响应附加安全头：
-// nosniff / DENY 防点击劫持 / no-referrer / CSP（允许 jsdelivr CDN 与内联脚本）；
+// nosniff / DENY 防点击劫持 / no-referrer / CSP（允许内联样式，naive-ui CSS-in-JS 需要）；
 // HTTPS（TLS 直连或 X-Forwarded-Proto: https）时附加 HSTS。
 func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -17,8 +17,8 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; "+
-				"script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "+
-				"style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "+
+				"script-src 'self' 'unsafe-inline'; "+
+				"style-src 'self' 'unsafe-inline'; "+
 				"img-src 'self' data: https:; "+
 				"connect-src 'self'")
 		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
