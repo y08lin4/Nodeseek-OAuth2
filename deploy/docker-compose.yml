@@ -1,0 +1,13 @@
+services:
+  ns-oauth2:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      - PORT=8080
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

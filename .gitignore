@@ -1,0 +1,37 @@
+# ========== 安全敏感（公开仓库：严禁入库） ==========
+# 任何真实 Cookie / 会话 / 密钥文件
+.env
+.env.*
+*.cookie
+cookies.json
+ns_session_cookie.txt
+*secret*.txt
+*.pem
+*.key
+
+# ========== Go (server/) ==========
+server/data/
+server/*.exe
+server/*.test
+server/coverage.out
+*.prof
+
+# ========== Node (web/ extension/) ==========
+node_modules/
+dist/
+*.local
+npm-debug.log*
+
+# ========== 构建缓存 ==========
+.gocache/
+.gopath/
+.npm-cache/
+.vite/
+
+# ========== 编辑器 / 系统 ==========
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,746 @@
+/* 全局样式：浅色卡片风，贴近原服务观感 */
+:root {
+  --ns-bg: #f0f2f5;
+  --ns-card-bg: #ffffff;
+  --ns-primary: #1f6feb;
+  --ns-text: #24292f;
+  --ns-muted: #6e7781;
+  --ns-border: #d0d7de;
+  --ns-success: #1a7f37;
+  --ns-danger: #cf222e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ns-bg);
+  color: var(--ns-text);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 全局导航条 */
+.app-nav {
+  background: #fff;
+  border-bottom: 1px solid var(--ns-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-nav-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-brand {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ns-text);
+  text-decoration: none;
+}
+
+.app-brand:hover {
+  color: var(--ns-primary);
+}
+
+.app-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-user {
+  font-size: 14px;
+  color: var(--ns-muted);
+  font-weight: 600;
+}
+
+/* 导航文字链接（如「我的授权」） */
+.app-nav-link {
+  font-size: 14px;
+  color: var(--ns-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-nav-link:hover {
+  text-decoration: underline;
+}
+
+.app-shell main {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-bottom: 48px;
+}
+
+.app-footer {
+  padding: 20px 0;
+  color: var(--ns-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--ns-border);
+  background: #fff;
+}
+
+/* 卡片 */
+.ns-card {
+  background: var(--ns-card-bg);
+  border: 1px solid var(--ns-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.08);
+  padding: 32px;
+}
+
+.ns-card-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.ns-card-sub {
+  color: var(--ns-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* 步骤指示器 1-2-3 */
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 28px;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ns-muted);
+}
+
+.step-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #eaeef2;
+  color: var(--ns-muted);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.step-label {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.step-line {
+  width: 56px;
+  height: 2px;
+  background: #d8dee4;
+  margin: 0 12px;
+}
+
+.step-item.active .step-badge {
+  background: var(--ns-primary);
+  color: #fff;
+}
+
+.step-item.active .step-label {
+  color: var(--ns-text);
+  font-weight: 600;
+}
+
+.step-item.done .step-badge {
+  background: var(--ns-success);
+  color: #fff;
+}
+
+/* 验证码展示 */
+.code-box {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-align: center;
+  background: #f6f8fa;
+  border: 1px dashed var(--ns-border);
+  border-radius: 8px;
+  padding: 16px 12px;
+  margin: 12px 0 4px;
+  color: var(--ns-primary);
+  user-select: all;
+  cursor: pointer;
+}
+
+.countdown {
+  text-align: center;
+  color: var(--ns-muted);
+  font-size: 14px;
+  margin: 8px 0 4px;
+}
+
+.countdown.expired {
+  color: var(--ns-danger);
+  font-weight: 600;
+}
+
+/* 提示条 */
+.ns-alert {
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin: 12px 0;
+}
+
+.ns-alert-error {
+  background: #ffebe9;
+  color: var(--ns-danger);
+  border: 1px solid #ffc1c0;
+}
+
+.ns-alert-info {
+  background: #ddf4ff;
+  color: #0550ae;
+  border: 1px solid #b6e3ff;
+}
+
+.ns-alert-success {
+  background: #dafbe1;
+  color: var(--ns-success);
+  border: 1px solid #aceebb;
+}
+
+/* 详情行（授权页/管理页） */
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eff2f5;
+  font-size: 14px;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: var(--ns-muted);
+  flex-shrink: 0;
+}
+
+.detail-value {
+  text-align: right;
+  word-break: break-all;
+}
+
+/* 管理页状态徽章 */
+.badge-set {
+  background: #dafbe1;
+  color: var(--ns-success);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badge-unset {
+  background: #fff1e5;
+  color: #bc4c00;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 审核状态徽章：处理中（蓝灰） */
+.badge-pending {
+  background: #ddf4ff;
+  color: #0969da;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 审核状态徽章：未通过（红） */
+.badge-danger {
+  background: #ffebe9;
+  color: var(--ns-danger);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 已撤销授权徽章（灰） */
+.badge-muted {
+  background: #eaeef2;
+  color: var(--ns-muted);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 用户 stats 卡片（等级/加入天数/鸡腿/主题帖/评论） */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.stat-item {
+  background: #f6f8fa;
+  border: 1px solid var(--ns-border);
+  border-radius: 8px;
+  padding: 12px 6px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ns-text);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--ns-muted);
+  margin-top: 2px;
+}
+
+@media (max-width: 576px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 授权门槛未满足的错误面板 */
+.gate-error-panel {
+  text-align: center;
+  background: #fff8f8;
+  border: 1px solid #ffc1c0;
+  border-radius: 10px;
+  padding: 32px 20px;
+}
+
+.gate-error-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.gate-error-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ns-danger);
+  margin: 0 0 8px;
+}
+
+.gate-error-msg {
+  font-size: 14px;
+  color: var(--ns-text);
+  margin-bottom: 8px;
+}
+
+/* 授权页应用头部 */
+.app-head {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eff2f5;
+}
+
+.app-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--ns-border);
+}
+
+.app-icon-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--ns-muted);
+  background: #eaeef2;
+}
+
+.app-name {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* 注册成功的一次性凭据面板 */
+.credential-panel {
+  background: #fff8e6;
+  border: 1px solid #eed888;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.credential-warning {
+  color: #9a6700;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.credential-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.credential-label {
+  flex-shrink: 0;
+  width: 90px;
+  font-size: 13px;
+  color: var(--ns-muted);
+}
+
+.credential-value {
+  flex: 1;
+  background: #fff;
+  border: 1px solid var(--ns-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
+  font-size: 13px;
+  word-break: break-all;
+  user-select: all;
+}
+
+/* 我的应用列表卡片 */
+.client-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.client-card {
+  background: #fff;
+  border: 1px solid var(--ns-border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.client-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.client-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--ns-border);
+}
+
+.client-icon-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--ns-muted);
+  background: #eaeef2;
+}
+
+.client-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.client-id {
+  font-size: 12px;
+  color: var(--ns-muted);
+  word-break: break-all;
+}
+
+.client-desc {
+  font-size: 13px;
+  color: var(--ns-muted);
+  margin-bottom: 8px;
+}
+
+/* 已禁用应用卡片：整体置灰 */
+.client-card-disabled {
+  opacity: 0.65;
+}
+
+/* 卡片操作按钮组 */
+.client-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eff2f5;
+}
+
+/* 登录第 2 步账号 chips */
+.account-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.account-chip {
+  border: 1px solid var(--ns-border);
+  background: #fff;
+  color: var(--ns-text);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.account-chip:hover {
+  border-color: var(--ns-primary);
+  color: var(--ns-primary);
+}
+
+.account-chip.active {
+  background: var(--ns-primary);
+  border-color: var(--ns-primary);
+  color: #fff;
+}
+
+/* 审核队列 */
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-item {
+  border: 1px solid var(--ns-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #fafbfc;
+}
+
+.review-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.review-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.review-client-id {
+  font-size: 12px;
+  color: var(--ns-muted);
+}
+
+.review-detail {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #eff2f5;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--ns-muted);
+}
+
+.review-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* —— 门户首页（/）—— */
+.portal {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.portal-hero {
+  background: linear-gradient(135deg, #f6f8fa 0%, #eef3fb 100%);
+  border: 1px solid var(--ns-border);
+  border-radius: 14px;
+  padding: 48px 32px;
+  text-align: center;
+}
+
+.portal-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--ns-text);
+}
+
+.portal-sub {
+  font-size: 16px;
+  color: var(--ns-muted);
+  max-width: 520px;
+  margin: 0 auto 24px;
+}
+
+.portal-cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.portal-h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+/* 三方角色卡片 */
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.role-card {
+  background: var(--ns-card-bg);
+  border: 1px solid var(--ns-border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: box-shadow 0.15s ease;
+}
+
+.role-card:hover {
+  box-shadow: 0 2px 8px rgba(31, 35, 40, 0.1);
+}
+
+.role-icon {
+  font-size: 26px;
+  margin-bottom: 10px;
+}
+
+.role-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+/* 快捷入口卡片（/dashboard） */
+.role-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.role-link:hover {
+  border-color: var(--ns-primary);
+}
+
+/* 三步私信验证流程 */
+.flow-steps {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--ns-card-bg);
+  border: 1px solid var(--ns-border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.flow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.flow-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ns-primary);
+  line-height: 1.2;
+}
+
+.flow-arrow {
+  align-self: center;
+  color: var(--ns-muted);
+  font-size: 18px;
+}
+
+/* 特性列表 */
+.feature-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.feature-item {
+  background: #fff;
+  border: 1px solid var(--ns-border);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ns-text);
+}
+
+/* —— 接入文档页（/docs）—— */
+.docs-steps {
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+.docs-steps li {
+  margin-bottom: 10px;
+  color: var(--ns-text);
+}
+
+.code-block {
+  background: #0d1117;
+  color: #e6edf3;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.code-block code {
+  font-family: ui-monospace, SFMono-Regular, 'Cascadia Code', Consolas, 'Courier New', monospace;
+}
+
+.docs-table code {
+  font-size: 12px;
+}

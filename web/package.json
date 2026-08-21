@@ -1,0 +1,24 @@
+{
+  "name": "nodeseek-oauth2-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/prepare-build.cjs && vue-tsc -b && vite build --configLoader runner",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.7.3",
+    "vite": "^6.0.7",
+    "vue-tsc": "^2.2.0"
+  },
+  "overrides": {
+    "esbuild": "npm:esbuild-wasm@^0.25.12"
+  }
+}

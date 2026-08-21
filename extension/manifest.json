@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "NSAuth2 Cookie Keeper",
+  "version": "0.1.0",
+  "description": "自动抓取 nodeseek.com 的登录 Cookie 并推送到自建服务端 /api/admin/cookie，防止系统账号 Cookie 失效导致 OAuth 私信核验不可用；支持一键自动打开私信页并填充验证码",
+  "permissions": ["cookies", "storage", "alarms", "tabs"],
+  "host_permissions": [
+    "https://*.nodeseek.com/*",
+    "https://ns.example.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["https://ns.example.com/*"],
+      "js": ["web-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://*.nodeseek.com/*"],
+      "js": ["pm-fill.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

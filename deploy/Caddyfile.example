@@ -1,0 +1,15 @@
+# Caddy 反代示例（生产 HTTPS 由 Caddy 自动签发）
+# 将 ns.example.com 替换为你的真实域名
+
+ns.example.com {
+	encode gzip
+
+	reverse_proxy 127.0.0.1:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+	}
+}

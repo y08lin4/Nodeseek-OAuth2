@@ -1,0 +1,12 @@
+{
+  "name": "nsauth2-cookie-keeper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nodeseek OAuth2 授权服务配套 MV3 扩展：自动抓取 nodeseek.com 登录 Cookie 并推送到自建服务端，防止系统账号 Cookie 失效导致服务不可用",
+  "scripts": {
+    "build": "tsc && node scripts/copy-static.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
