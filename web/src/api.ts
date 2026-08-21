@@ -118,6 +118,8 @@ export interface RegisterReq {
   min_rank: number
   /** access_token 有效期（秒，默认 3600，范围 60-86400） */
   token_ttl: number
+  /** 通知邮箱（可选）：用于接收审核结果与错误率告警 */
+  notify_email?: string
 }
 
 /** POST /api/client/register 成功响应中的应用信息（client_secret 仅此一次明文返回） */
@@ -484,6 +486,10 @@ export interface ReviewItem {
   client_id: string
   client_name: string
   owner_user_id: string
+  /** 申请者昵称（users 表 join；可能缺失则回退 owner_user_id） */
+  owner_name?: string
+  /** 申请者等级（缓存或实时；可能缺失） */
+  owner_rank?: number
   detail: string
   created_at: string
 }
@@ -570,6 +576,8 @@ export interface AdminClient {
   client_id: string
   client_name: string
   owner_user_id: string
+  /** 创建者昵称（users 表 join；可能缺失则显示 owner_user_id） */
+  owner_name?: string
   homepage_url: string
   description: string
   icon_url: string
@@ -663,3 +671,205 @@ export function deleteAdminClient(clientId: string, adminToken?: string): Promis
     headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
   })
 }
+
+// —— 管理端 v2：用户 / 授权记录 / Secret 重置 / CSV（凭会话） ——
+
+/** GET /api/admin/users 中的用户条目（join 授权数/黑名单；等级为缓存值可能为 0/暂无） */
+export interface AdminUser {
+  user_id: string
+  nickname: string
+  /** 等级（缓存；列表不实时拉，可能缺失） */
+  rank?: number
+  /** 注册天数（自用户表 join，可能缺失） */
+  signup_days?: number
+  /** 登录次数 */
+  login_count?: number
+  /** 授权记录数 */
+  grant_count?: number
+  /** 是否被拉黑 */
+  blacklisted: boolean
+  /** 今日活跃（登录/授权）次数 */
+  active_today?: number
+  /** 今日登录次数 */
+  login_today?: number
+  created_at?: string
+}
+
+/** GET /api/admin/users 成功响应 */
+export interface AdminUsersResp {
+  success: true
+  users: AdminUser[]
+}
+
+/** GET /api/admin/users/{id}/detail 用户详情（实时拉 NS stats + 用户记录） */
+export interface AdminUserDetail {
+  success: true
+  user_id: string
+  nickname: string
+  blacklisted: boolean
+  /** 实时等级，拉取失败为 null */
+  rank: number | null
+  signup_days: number | null
+  /** 鸡腿 */
+  chicken: number | null
+  topics: number | null
+  comments: number | null
+  login_count?: number
+  grant_count?: number
+  created_at?: string
+}
+
+/** GET /api/admin/users/{id}/stats 用户统计（今日/累计 登录与授权成功失败） */
+export interface AdminUserStats {
+  success: true
+  today: { login_ok: number; login_fail: number; auth_ok: number; auth_fail: number }
+  total: { login_ok: number; login_fail: number; auth_ok: number; auth_fail: number }
+}
+
+/** POST /api/admin/clients/{id}/reset-secret 成功响应（secret 仅此一次明文返回） */
+export interface ResetSecretResp {
+  success: true
+  client_id: string
+  client_secret: string
+}
+
+/** GET /api/admin/grants 中的授权记录（join 昵称；scope/token 兑换次数等） */
+export interface AdminGrant {
+  user_id: string
+  user_name: string
+  client_id: string
+  client_name: string
+  scope: string
+  /** 授权时间（RFC3339） */
+  granted_at: string
+  status: 'active' | 'revoked'
+  /** 撤销时间（RFC3339），未撤销为 ''/null */
+  revoked_at?: string
+  /** token 兑换次数 */
+  token_count?: number
+}
+
+/** GET /api/admin/grants 成功响应（支持 user_id/client_id/status 过滤） */
+export interface AdminGrantsResp {
+  success: true
+  grants: AdminGrant[]
+}
+
+/** GET /api/admin/users：全部用户列表（管理端，凭会话） */
+export function listAdminUsers(adminToken?: string): Promise<AdminUsersResp> {
+  return request<AdminUsersResp>('/api/admin/users', {
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+  })
+}
+
+/** GET /api/admin/users/{id}/detail：用户详情（实时拉 NS stats，管理端） */
+export function getAdminUserDetail(userId: string, adminToken?: string): Promise<AdminUserDetail> {
+  return request<AdminUserDetail>(`/api/admin/users/${encodeURIComponent(userId)}/detail`, {
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+  })
+}
+
+/** GET /api/admin/users/{id}/stats：用户统计（管理端） */
+export function getAdminUserStats(userId: string, adminToken?: string): Promise<AdminUserStats> {
+  return request<AdminUserStats>(`/api/admin/users/${encodeURIComponent(userId)}/stats`, {
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+  })
+}
+
+/** PATCH /api/admin/users/{id}：黑名单开关（拉黑=吊销 token+授权） */
+export function patchAdminUser(
+  userId: string,
+  data: { blacklisted: boolean },
+  adminToken?: string,
+): Promise<LogoutResp> {
+  return request<LogoutResp>(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+    body: data,
+  })
+}
+
+/** GET /api/admin/grants：授权记录（过滤 user_id/client_id/status；凭会话） */
+export function listAdminGrants(
+  params: { user_id?: string; client_id?: string; status?: string } = {},
+  adminToken?: string,
+): Promise<AdminGrantsResp> {
+  const qs = new URLSearchParams()
+  if (params.user_id) qs.set('user_id', params.user_id)
+  if (params.client_id) qs.set('client_id', params.client_id)
+  if (params.status) qs.set('status', params.status)
+  const query = qs.toString()
+  return request<AdminGrantsResp>(`/api/admin/grants${query ? `?${query}` : ''}`, {
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+  })
+}
+
+/** POST /api/admin/clients/{id}/reset-secret：重置应用密钥（旧 secret 立即失效） */
+export function resetClientSecret(clientId: string, adminToken?: string): Promise<ResetSecretResp> {
+  return request<ResetSecretResp>(`/api/admin/clients/${encodeURIComponent(clientId)}/reset-secret`, {
+    method: 'POST',
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+  })
+}
+
+/** CSV 导出下载链接（同源凭 Cookie；UTF-8 BOM 由服务端写入） */
+export function exportUsersUrl(params: { q?: string } = {}): string {
+  const qs = params.q ? `?q=${encodeURIComponent(params.q)}` : ''
+  return `/api/admin/export/users.csv${qs}`
+}
+
+export function exportGrantsUrl(params: { user_id?: string; client_id?: string; status?: string } = {}): string {
+  const qs = new URLSearchParams()
+  if (params.user_id) qs.set('user_id', params.user_id)
+  if (params.client_id) qs.set('client_id', params.client_id)
+  if (params.status) qs.set('status', params.status)
+  const query = qs.toString()
+  return `/api/admin/export/grants.csv${query ? `?${query}` : ''}`
+}
+
+// —— SMTP 运行时配置（GET/POST /api/admin/smtp；密码永不明文返回） ——
+
+/** SMTP TLS 加密模式（与后端契约一致） */
+export type SmtpTlsMode = 'ssl' | 'starttls' | 'none'
+
+/** GET/POST /api/admin/smtp 响应（后端返回扁平字段，密码经 has_password 脱敏表示） */
+export type AdminSmtpConfig = {
+  host: string
+  port: number
+  tls: SmtpTlsMode
+  user: string
+  /** 是否已设置密码（密码本身永不明文返回） */
+  has_password: boolean
+  enabled: boolean
+}
+
+/** GET /api/admin/smtp 成功响应 */
+export interface AdminSmtpResp {
+  success: true
+  host: string
+  port: number
+  tls: SmtpTlsMode
+  user: string
+  has_password: boolean
+  enabled: boolean
+}
+
+/** GET /api/admin/smtp：读取 SMTP 配置（凭会话） */
+export function getAdminSmtp(adminToken?: string): Promise<AdminSmtpResp> {
+  return request<AdminSmtpResp>('/api/admin/smtp', {
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+  })
+}
+
+/** POST /api/admin/smtp：保存 SMTP 配置并热更新 mailer（password 空串 = 保留旧密码；凭会话） */
+export function saveAdminSmtp(
+  data: { host: string; port: number; tls: SmtpTlsMode; user: string; password: string; enabled: boolean },
+  adminToken?: string,
+): Promise<AdminSmtpResp> {
+  return request<AdminSmtpResp>('/api/admin/smtp', {
+    method: 'POST',
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+    body: data,
+  })
+}
+

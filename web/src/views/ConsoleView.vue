@@ -51,6 +51,7 @@ const redirectUrisText = ref('')
 const iconUrl = ref('')
 const minRank = ref<number>(0)
 const tokenTtl = ref<number>(60) // access_token 有效期（分钟），默认 60，范围 1-1440
+const notifyEmail = ref('') // 通知邮箱（可选）
 
 // 最低等级选项：NodeSeek 最高 6 级，0 = 不限（SPEC 3.3）
 const minRankOptions = [0, 1, 2, 3, 4, 5, 6].map((r) => ({
@@ -73,6 +74,11 @@ function isValidHttpUrl(s: string): boolean {
   } catch {
     return false
   }
+}
+
+// 校验邮箱（简单格式校验）
+function isValidEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
 }
 
 // 回调地址：逗号分隔 → 去空白
@@ -101,6 +107,11 @@ function validateForm(): string {
   if (!Number.isInteger(ttl) || ttl < 1 || ttl > 1440) {
     return 'access_token 有效期需为 1-1440 的整数（分钟）'
   }
+  // 通知邮箱可选；非空时须为合法邮箱
+  const email = notifyEmail.value.trim()
+  if (email && !isValidEmail(email)) {
+    return '通知邮箱格式不正确'
+  }
   return ''
 }
 
@@ -128,6 +139,7 @@ function handleRegister() {
           icon_url: iconUrl.value.trim(),
           min_rank: minRank.value,
           token_ttl: tokenTtl.value * 60, // 分钟 → 秒
+          notify_email: notifyEmail.value.trim() || undefined,
         })
         // 凭据一次性展示；成功提示以响应 status 为准（mock 后端直接 approved）
         credentials.value = resp.client
@@ -142,6 +154,7 @@ function handleRegister() {
         iconUrl.value = ''
         minRank.value = 0
         tokenTtl.value = 60
+        notifyEmail.value = ''
         await loadList()
       } catch (e) {
         message.error(e instanceof ApiError ? e.message : '创建应用失败，请重试')
@@ -325,6 +338,14 @@ onMounted(async () => {
       <n-form-item label="access_token 有效期（分钟）">
         <n-input-number v-model:value="tokenTtl" :min="1" :max="1440" :step="1" style="width: 100%" />
         <template #feedback>授权码兑换的 access_token 有效时长，范围 1-1440 分钟（默认 60）。</template>
+      </n-form-item>
+      <n-form-item label="通知邮箱（可选）">
+        <n-input
+          v-model:value="notifyEmail"
+          placeholder="用于接收审核结果与错误率告警"
+          :input-props="{ type: 'email', autocomplete: 'email' }"
+        />
+        <template #feedback>非必填；用于接收审核结果通知与错误率告警邮件。</template>
       </n-form-item>
       <n-button type="primary" :loading="submitting" @click="handleRegister">
         创建应用

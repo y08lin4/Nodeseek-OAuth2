@@ -5,8 +5,9 @@
   "description": "自动抓取 nodeseek.com 的登录 Cookie 并推送到自建服务端 /api/admin/cookie，防止系统账号 Cookie 失效导致 OAuth 私信核验不可用；支持一键自动打开私信页并填充验证码",
   "permissions": ["cookies", "storage", "alarms", "tabs"],
   "host_permissions": [
+    "https://www.nodeseek.com/*",
     "https://*.nodeseek.com/*",
-    "https://ns.example.com/*"
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js"

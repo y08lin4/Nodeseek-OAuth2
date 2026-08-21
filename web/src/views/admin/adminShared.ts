@@ -66,3 +66,113 @@ export function ageText(seconds: number): string {
   if (s < 86400) return `${Math.floor(s / 3600)} 小时前`
   return `${Math.floor(s / 86400)} 天前`
 }
+
+// —— 审计日志：事件汉化映射 + 级别分类 ——
+
+/** 审计事件 → 中文名（覆盖后端全部事件；未命中回退原文） */
+export const AUDIT_EVENT_CN: Record<string, string> = {
+  // 登录
+  'login.verify': '发起登录',
+  'login.confirm.ok': '登录成功',
+  'login.confirm.fail': '登录失败',
+  'user.blocked': '黑名单拦截',
+  'rate.limit': '频率限制',
+  // 授权 / 令牌
+  'gate.block': '门槛拦截',
+  'authorize.code': '签发授权码',
+  'token.exchange.ok': '兑换令牌',
+  'token.exchange.fail': '令牌兑换失败',
+  'userinfo.access': '读取用户信息',
+  'grant.revoke': '撤销授权',
+  // 应用
+  'client.register': '注册应用',
+  'client.patch': '修改应用',
+  'client.delete': '删除应用',
+  'client.delete_request': '申请删除应用',
+  // 审核
+  'review.approve': '审核通过',
+  'review.reject': '审核拒绝',
+  // Cookie / 邮件
+  'cookie.update': '更新 Cookie',
+  'cookie.alert': 'Cookie 告警',
+  'mail.cookie_alert': 'Cookie 失效告警',
+  'mail.sent': '邮件发送',
+  // 管理端
+  'admin.login.ok': '管理登录',
+  'admin.login.fail': '管理登录失败',
+  'admin.logout': '管理登出',
+  'admin.account.create': '新增系统账号',
+  'admin.account.patch': '修改系统账号',
+  'admin.account.delete': '删除系统账号',
+  'admin.cookie.update': '管理更新 Cookie',
+  'admin.test_mail': '发送测试邮件',
+  'admin.clients.view': '查看应用列表',
+  'admin.client.reset_secret': '重置应用密钥',
+  'admin.smtp.update': '更新 SMTP',
+  'admin.users.view': '查看用户列表',
+  'admin.user.detail': '查看用户详情',
+  'admin.user.stats': '查看用户统计',
+  'user.blacklist': '拉黑用户',
+  'user.unblacklist': '解禁用户',
+  'admin.grants.view': '查看授权记录',
+  'admin.export.users': '导出用户数据',
+  'admin.export.grants': '导出授权数据',
+  'admin.stats.view': '查看统计',
+  'admin.audit.view': '查看日志',
+  // 泛型兜底（未来可能新增）
+  'admin.client.create': '新建应用',
+  'admin.client.delete': '删除应用',
+  'admin.client.update': '修改应用',
+  'admin.review.approve': '管理审核通过',
+  'admin.review.deny': '管理审核拒绝',
+}
+
+export function auditEventCN(event: string): string {
+  if (AUDIT_EVENT_CN[event]) return AUDIT_EVENT_CN[event]
+  // 前缀兜底
+  if (event.startsWith('login.')) return '登录操作'
+  if (event.startsWith('authorize.')) return '授权操作'
+  if (event.startsWith('token.')) return '令牌操作'
+  if (event.startsWith('cookie.')) return 'Cookie 操作'
+  if (event.startsWith('mail.')) return '邮件操作'
+  if (event.startsWith('admin.client.')) return '管理应用操作'
+  if (event.startsWith('admin.review.')) return '管理审核'
+  if (event.startsWith('admin.user.')) return '用户管理操作'
+  if (event.startsWith('admin.export.')) return '导出数据'
+  if (event.startsWith('user.block')) return '黑名单拦截'
+  if (event.startsWith('admin.')) return '管理操作'
+  return event
+}
+
+export type AuditLevel = 'info' | 'warn' | 'error'
+
+/** 事件 → 级别（info 正常 / warn 异常 / error 安全事件） */
+export function auditLevel(event: string): AuditLevel {
+  // error：安全事件
+  const errSet = [
+    'user.blocked',
+    'admin.login.fail',
+    'token.exchange.fail',
+    'user.blacklist',
+    'gate.block',
+  ]
+  if (errSet.includes(event)) return 'error'
+  // warn：异常
+  const warnSet = ['login.confirm.fail', 'rate.limit', 'mail.cookie_alert']
+  if (warnSet.includes(event)) return 'warn'
+  return 'info'
+}
+
+/** 级别标签文案 */
+export const AUDIT_LEVEL_TEXT: Record<AuditLevel, string> = {
+  info: '正常',
+  warn: '警告',
+  error: '异常',
+}
+
+/** 级别徽章类型 */
+export const AUDIT_LEVEL_TAG: Record<AuditLevel, 'default' | 'warning' | 'error'> = {
+  info: 'default',
+  warn: 'warning',
+  error: 'error',
+}

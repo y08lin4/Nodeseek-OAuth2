@@ -8,6 +8,8 @@ import {
   Blocks,
   ClipboardCheck,
   Users,
+  ServerCog,
+  KeyRound,
   ScrollText,
   Settings,
   LogOut,
@@ -31,18 +33,27 @@ const navGroups = [
   {
     label: '管理',
     items: [
+      { to: '/admin/users', label: '用户', icon: Users },
       { to: '/admin/apps', label: '应用', icon: Blocks },
       { to: '/admin/reviews', label: '审核', icon: ClipboardCheck },
-      { to: '/admin/accounts', label: '账号', icon: Users },
+      { to: '/admin/accounts', label: '账号', icon: ServerCog },
+      { to: '/admin/grants', label: '授权记录', icon: KeyRound },
     ],
   },
-  { items: [{ to: '/admin/audit', label: '日志', icon: ScrollText }] },
-  { items: [{ to: '/admin/settings', label: '设置', icon: Settings }] },
+  {
+    label: '系统',
+    items: [
+      { to: '/admin/audit', label: '日志', icon: ScrollText },
+      { to: '/admin/settings', label: '设置', icon: Settings },
+    ],
+  },
 ]
 
-// 激活判断（精确匹配路由路径）
+// 激活判断：精确匹配，或用户详情页 /admin/users/:id 也高亮「用户」项
 function isActive(to: string): boolean {
-  return route.path === to
+  if (route.path === to) return true
+  if (to === '/admin/users' && route.path.startsWith('/admin/users/')) return true
+  return false
 }
 
 function go(to: string) {
@@ -178,7 +189,7 @@ async function handleLogout() {
 .admin-body {
   flex: 1;
   display: flex;
-  max-width: 1120px;
+  max-width: 1420px;
   width: 100%;
   margin: 0 auto;
 }
@@ -233,7 +244,7 @@ async function handleLogout() {
 .admin-content {
   flex: 1;
   min-width: 0;
-  max-width: 900px;
+  max-width: 1200px;
   padding: 24px 20px 48px;
 }
 

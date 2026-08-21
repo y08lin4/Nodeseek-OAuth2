@@ -1,14 +1,16 @@
 <script setup lang="ts">
-// 管理后台仪表盘：今日统计 + Cookie 状态 + 系统账号概览 + 审核待办 + 最近审计
+// 管理后台仪表盘：今日统计 + Cookie 状态 + 系统账号概览 + 审核待办 + 最近审计 + 应用排行
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NCard, NTag, NButton, NSpin, NTable, NEmpty, useMessage } from 'naive-ui'
+import { Blocks } from 'lucide-vue-next'
 import {
   getAdminStatus,
   getAdminStats,
   listAccounts,
   listReviews,
   listAudit,
+  listAdminClients,
   ApiError,
   type AdminStatus,
   type AdminStats,
@@ -16,6 +18,7 @@ import {
   type ReviewItem,
   type ReviewType,
   type AuditEvent,
+  type AdminClient,
 } from '../../api'
 import {
   statItemLabel,
@@ -32,6 +35,7 @@ const status = ref<AdminStatus | null>(null)
 const accounts = ref<SysAccount[]>([])
 const reviews = ref<ReviewItem[]>([])
 const recentAudit = ref<AuditEvent[]>([])
+const clients = ref<AdminClient[]>([])
 
 const loading = ref(false)
 
@@ -44,6 +48,7 @@ async function loadAll() {
     loadAccounts().then(() => {}),
     loadReviews().then(() => {}),
     loadAudit().then(() => {}),
+    loadClientsTop().then(() => {}),
   ])
   loading.value = false
 }
@@ -91,6 +96,23 @@ async function loadAudit() {
   } catch (e) {
     recentAudit.value = []
     message.error(e instanceof ApiError ? e.message : '获取审计日志失败')
+  }
+}
+
+// 应用排行：按今日授权成功数取前 5
+const topApps = (): { client_id: string; client_name: string; count: number }[] =>
+  [...clients.value]
+    .sort((a, b) => b.stats.auth_ok_today - a.stats.auth_ok_today)
+    .slice(0, 5)
+    .map((c) => ({ client_id: c.client_id, client_name: c.client_name, count: c.stats.auth_ok_today }))
+
+async function loadClientsTop() {
+  try {
+    const r = await listAdminClients()
+    clients.value = r.clients
+  } catch (e) {
+    clients.value = []
+    message.error(e instanceof ApiError ? e.message : '获取应用排行失败')
   }
 }
 
@@ -198,6 +220,22 @@ onMounted(loadAll)
         </template>
         <n-empty v-else description="暂无待审核项" size="small" />
       </n-card>
+
+      <!-- 应用排行 Top5 -->
+      <n-card size="small" class="dash-card" title="应用排行 Top5">
+        <template #header-extra>
+          <Blocks :size="16" class="rank-icon" />
+        </template>
+        <template v-if="clients.length">
+          <div v-for="(a, i) in topApps()" :key="a.client_id" class="rank-row">
+            <span class="rank-idx">{{ i + 1 }}</span>
+            <button type="button" class="rank-name" @click="router.push('/admin/apps')">{{ a.client_name }}</button>
+            <span class="rank-count">{{ a.count }}</span>
+          </div>
+          <n-button size="small" text class="ns-mt-2" @click="router.push('/admin/apps')">查看全部应用 →</n-button>
+        </template>
+        <n-empty v-else description="暂无应用" size="small" />
+      </n-card>
     </div>
 
     <!-- 最近审计 -->
@@ -238,5 +276,60 @@ onMounted(loadAll)
 
 .dash-card {
   border-radius: 6px;
+}
+
+.rank-icon {
+  color: var(--ns-primary);
+}
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--ns-border);
+  font-size: 13px;
+}
+
+.rank-row:last-of-type {
+  border-bottom: none;
+}
+
+.rank-idx {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: var(--ns-primary-soft);
+  color: var(--ns-primary-hover);
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-name {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ns-text);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-name:hover {
+  color: var(--ns-primary);
+}
+
+.rank-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ns-muted);
 }
 </style>

@@ -121,6 +121,55 @@ func (c *Client) FetchUserStats(userID string) (UserStats, error) {
 	return stats, nil
 }
 
+// UserProfile 用户信息（getInfo）：等级统计 + 昵称。
+type UserProfile struct {
+	Stats      UserStats
+	MemberName string
+}
+
+// FetchUserProfile 拉取用户信息（getInfo）并同时返回统计与昵称（member_name）。
+// NS_MOCK_MODE=1 时返回固定样例。失败返回错误（fail-closed）。
+func (c *Client) FetchUserProfile(userID string) (UserProfile, error) {
+	if c.MockMode {
+		return UserProfile{
+			Stats:      UserStats{Rank: 3, JoinDays: 360, Chicken: 1494, Topics: 86, Comments: 1418},
+			MemberName: "mock-user",
+		}, nil
+	}
+	u := strings.ReplaceAll(c.APIUserURL, "{user_id}", userID)
+	body, err := c.getJSON(u, "")
+	if err != nil {
+		return UserProfile{}, fmt.Errorf("获取用户信息失败：请求 %w", err)
+	}
+	var resp struct {
+		Success bool `json:"success"`
+		Detail  struct {
+			Rank       int    `json:"rank"`
+			Coin       int    `json:"coin"`
+			CreatedAt  string `json:"created_at"`
+			NPost      int    `json:"nPost"`
+			NComment   int    `json:"nComment"`
+			MemberName string `json:"member_name"`
+		} `json:"detail"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return UserProfile{}, fmt.Errorf("获取用户信息失败：解析 %w", err)
+	}
+	if !resp.Success {
+		return UserProfile{}, errors.New("success=false")
+	}
+	return UserProfile{
+		Stats: UserStats{
+			Rank:     resp.Detail.Rank,
+			Chicken:  resp.Detail.Coin,
+			Topics:   resp.Detail.NPost,
+			Comments: resp.Detail.NComment,
+			JoinDays: joinDaysFromCreatedAt(resp.Detail.CreatedAt),
+		},
+		MemberName: resp.Detail.MemberName,
+	}, nil
+}
+
 // WhoAmIResult 账号识别结果。
 type WhoAmIResult struct {
 	UserID   string

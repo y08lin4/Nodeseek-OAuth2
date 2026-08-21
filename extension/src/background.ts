@@ -30,13 +30,27 @@ interface Slot {
   intervalMin: number;
   targetAccountId: string; // 可选：有值时请求带 account_id（服务端 NS_COOKIE_AUTO_DETECT=0 时手动绑定）
   enabled: boolean;
+  account?: { id: string | number; name: string; rank: string | number };
+}
+
+// 新的结构化推送结果（popup 与 options 展示用）。
+// lastResult 兼容旧数据：可能是字符串（旧版）或下述对象（新版）。
+type ErrorType = 'unauthorized' | 'network' | 'unrecognized' | 'other';
+interface SlotResultDetail {
+  ok: boolean;
+  at: number; // 本次推送时间
+  account_id?: string | number;
+  account_name?: string;
+  rank?: string | number;
+  error_type?: ErrorType;
+  message?: string;
 }
 
 interface SlotResult {
   id: string;
   name: string;
   lastPushAt: number;
-  lastResult: string; // 'ok' 或错误信息
+  lastResult: string | SlotResultDetail; // 旧版字符串 / 新版对象
 }
 
 // ==================== 配置读取（含旧版迁移） ====================
@@ -77,6 +91,13 @@ async function getConfig(): Promise<{ slots: Slot[] }> {
 }
 
 function normalizeSlot(s: Slot): Slot {
+  const account = s.account && typeof s.account === 'object'
+    ? {
+        id: String(s.account.id ?? ''),
+        name: String(s.account.name ?? ''),
+        rank: s.account.rank == null ? '—' : String(s.account.rank),
+      }
+    : undefined;
   return {
     id: s.id,
     name: String(s.name ?? '') || '未命名槽位',
@@ -85,6 +106,7 @@ function normalizeSlot(s: Slot): Slot {
     intervalMin: Math.max(1, Math.min(1440, Math.floor(Number(s.intervalMin ?? 30)) || 30)),
     targetAccountId: String(s.targetAccountId ?? '').trim(),
     enabled: s.enabled !== false,
+    account,
   };
 }
 
@@ -106,19 +128,33 @@ async function storeResult(r: SlotResult): Promise<void> {
 // ==================== 单槽位推送 ====================
 // retry：0 首次尝试；1 = 1min 后重试；2 = 5min 后重试（最多 2 次退避）
 async function pushSlot(slot: Slot, retry = 0): Promise<void> {
-  const result: SlotResult = { id: slot.id, name: slot.name, lastPushAt: Date.now(), lastResult: '未知' };
+  const at = Date.now();
+  const fail = (error_type: ErrorType, message: string): SlotResultDetail => ({
+    ok: false,
+    at,
+    error_type,
+    message,
+  });
 
   // 槽位可能推送途中被停用：记录状态但不推送
   if (!slot.enabled) {
-    result.lastResult = '已停用';
-    await storeResult(result);
+    await storeResult({
+      id: slot.id,
+      name: slot.name,
+      lastPushAt: at,
+      lastResult: fail('other', '已停用'),
+    });
     return;
   }
 
   // 启用槽位必须填 serverUrl 与 adminToken（options 已校验，此处兜底）
   if (!slot.serverUrl || !slot.adminToken) {
-    result.lastResult = '未配置（缺 serverUrl 或 adminToken）';
-    await storeResult(result);
+    await storeResult({
+      id: slot.id,
+      name: slot.name,
+      lastPushAt: at,
+      lastResult: fail('other', '未配置（缺 serverUrl 或 adminToken）'),
+    });
     return;
   }
 
@@ -126,8 +162,12 @@ async function pushSlot(slot: Slot, retry = 0): Promise<void> {
     // 1. 抓取 nodeseek.com 域下全部 Cookie（domain 参数匹配该域及其子域）
     const cookies = await chrome.cookies.getAll({ domain: '.nodeseek.com' });
     if (cookies.length === 0) {
-      result.lastResult = '未找到 Cookie（可能未登录 nodeseek）';
-      await storeResult(result);
+      await storeResult({
+        id: slot.id,
+        name: slot.name,
+        lastPushAt: at,
+        lastResult: fail('unrecognized', '未找到 nodeseek Cookie（可能未登录）'),
+      });
       return;
     }
     const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
@@ -138,37 +178,70 @@ async function pushSlot(slot: Slot, retry = 0): Promise<void> {
 
     // 3. 推送（去除 serverUrl 尾部多余斜杠，避免拼出双斜杠）
     const base = slot.serverUrl.replace(/\/+$/, '');
-    const resp = await fetch(`${base}/api/admin/cookie`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Token': slot.adminToken,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!resp.ok) {
-      // 非 2xx 视为失败（如 403 表示 adminToken 不对、400 表示 account_id 无法识别）
-      throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
-    }
-
-    // 4. 成功：记录结果并清除该槽位遗留的退避闹钟
-    result.lastResult = 'ok';
-    await storeResult(result);
-    await clearRetryAlarms(slot.id);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    result.lastResult = `失败：${msg}`;
-    await storeResult(result);
-
-    // 简单退避：1min、5min 各重试一次；独立闹钟，不阻塞其他槽位
-    if (retry < RETRY_DELAYS.length) {
-      await chrome.alarms.create(`${RETRY_ALARM_PREFIX}-${slot.id}-${retry + 1}`, {
-        delayInMinutes: RETRY_DELAYS[retry],
+    let resp: Response;
+    try {
+      resp = await fetch(`${base}/api/admin/cookie`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': slot.adminToken,
+        },
+        body: JSON.stringify(body),
       });
+    } catch (e) {
+      // 网络层错误（DNS/连接/TLS 失败等）→ 分类为 network
+      const msg = e instanceof Error ? e.message : String(e);
+      await storeResult({
+        id: slot.id,
+        name: slot.name,
+        lastPushAt: at,
+        lastResult: fail('network', `无法连接：${msg}`),
+      });
+      await scheduleRetry(slot, retry);
+      return;
     }
+
+    if (!resp.ok) {
+      // 401 令牌错误 / 400 识别失败 / 其他状态
+      const detail: SlotResultDetail =
+        resp.status === 401
+          ? fail('unauthorized', '管理令牌错误（HTTP 401）')
+          : resp.status === 400
+            ? fail('unrecognized', 'Cookie 识别失败（HTTP 400）')
+            : fail('other', `HTTP ${resp.status} ${resp.statusText}`);
+      await storeResult({ id: slot.id, name: slot.name, lastPushAt: at, lastResult: detail });
+      await scheduleRetry(slot, retry);
+      return;
+    }
+
+    // 4. 成功：解析账号信息（account_id/account_name/stats.rank），记录结构化结果并清除退避闹钟
+    let detail: SlotResultDetail = { ok: true, at };
+    try {
+      const data = (await resp.json()) as {
+        account_id?: string | number;
+        account_name?: string;
+        stats?: { rank?: string | number } | null;
+      };
+      if (data.account_id !== undefined) detail.account_id = data.account_id;
+      if (data.account_name !== undefined) detail.account_name = data.account_name;
+      if (data.stats && data.stats.rank !== undefined) detail.rank = data.stats.rank;
+    } catch {
+      // 服务端未返回 JSON 或有空 body：仍视为推送成功，仅无账号信息
+    }
+    await storeResult({ id: slot.id, name: slot.name, lastPushAt: at, lastResult: detail });
+    await clearRetryAlarms(slot.id);
   } finally {
     // 无论成败：下一正常周期从「现在 + interval」开始，避免主调度被失败槽位频繁触发
     dueTimes.set(slot.id, Date.now() + slot.intervalMin * 60_000);
+  }
+}
+
+// 失败退避：1min、5min 各重试一次；独立闹钟，不阻塞其他槽位
+async function scheduleRetry(slot: Slot, retry: number): Promise<void> {
+  if (retry < RETRY_DELAYS.length) {
+    await chrome.alarms.create(`${RETRY_ALARM_PREFIX}-${slot.id}-${retry + 1}`, {
+      delayInMinutes: RETRY_DELAYS[retry],
+    });
   }
 }
 

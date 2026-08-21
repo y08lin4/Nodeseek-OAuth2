@@ -323,6 +323,26 @@ function backToStep1() {
     <div v-else-if="step === 2">
       <p class="ns-mb-1">请将以下验证码通过私信发送给任一系统账号</p>
 
+      <!-- 油猴钩子：收件人（系统账号）——填入私信对象的 NS ID 与名称 -->
+      <p
+        v-if="selectedAccount?.account_id"
+        id="oauth-system-account"
+        class="ns-text-muted ns-small ns-mb-1"
+        :data-uid="selectedAccount.account_id"
+        :data-name="selectedAccount.account_name"
+      >
+        请私信给系统账号【{{ selectedAccount.account_name }}（{{ selectedAccount.account_id }}）】内容为验证码
+      </p>
+      <p
+        v-else-if="config?.nodeseek.auth_account_id"
+        id="oauth-system-account"
+        class="ns-text-muted ns-small ns-mb-1"
+        :data-uid="config.nodeseek.auth_account_id"
+        :data-name="config.nodeseek.auth_account_username ?? ''"
+      >
+        请私信给系统账号【{{ config.nodeseek.auth_account_username ?? 'Nodeseek 系统账号' }}（{{ config.nodeseek.auth_account_id }}）】内容为验证码
+      </p>
+
       <!-- 账号 chips：单选，默认选中第一个；私信链接与自动填充按选中账号生成 -->
       <n-radio-group
         v-if="accounts.length > 0"
@@ -346,7 +366,7 @@ function backToStep1() {
         （NS ID：{{ config?.nodeseek.auth_account_id ?? '—' }}）
       </p>
 
-      <div class="code-box" :title="'点击复制'" @click="copyCode">
+      <div class="code-box oauth-code-display" :title="'点击复制'" @click="copyCode">
         {{ verificationCode }}
       </div>
 

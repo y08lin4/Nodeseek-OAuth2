@@ -11,9 +11,12 @@ import { getAdminStatus, ApiError } from './api'
 import AdminLayout from './views/admin/AdminLayout.vue'
 import AdminLoginView from './views/admin/AdminLoginView.vue'
 import AdminDashboardView from './views/admin/AdminDashboardView.vue'
+import AdminUsersView from './views/admin/AdminUsersView.vue'
+import AdminUserDetailView from './views/admin/AdminUserDetailView.vue'
 import AdminAppsView from './views/admin/AdminAppsView.vue'
 import AdminReviewsView from './views/admin/AdminReviewsView.vue'
 import AdminAccountsView from './views/admin/AdminAccountsView.vue'
+import AdminGrantsView from './views/admin/AdminGrantsView.vue'
 import AdminAuditView from './views/admin/AdminAuditView.vue'
 import AdminSettingsView from './views/admin/AdminSettingsView.vue'
 
@@ -58,9 +61,12 @@ const router = createRouter({
       beforeEnter: adminGuard,
       children: [
         { path: 'dashboard', name: 'admin-dashboard', component: AdminDashboardView },
+        { path: 'users', name: 'admin-users', component: AdminUsersView },
+        { path: 'users/:id', name: 'admin-user-detail', component: AdminUserDetailView },
         { path: 'apps', name: 'admin-apps', component: AdminAppsView },
         { path: 'reviews', name: 'admin-reviews', component: AdminReviewsView },
         { path: 'accounts', name: 'admin-accounts', component: AdminAccountsView },
+        { path: 'grants', name: 'admin-grants', component: AdminGrantsView },
         { path: 'audit', name: 'admin-audit', component: AdminAuditView },
         { path: 'settings', name: 'admin-settings', component: AdminSettingsView },
       ],

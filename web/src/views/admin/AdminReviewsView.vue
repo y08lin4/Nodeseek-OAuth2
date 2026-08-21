@@ -2,6 +2,7 @@
 // 管理后台 · 审核队列：通过/拒绝（拒绝可填理由）
 import { h, onMounted, ref } from 'vue'
 import { NCard, NButton, NTag, NInput, NSpin, NEmpty, useMessage, useDialog } from 'naive-ui'
+import { ExternalLink } from 'lucide-vue-next'
 import { listReviews, reviewAction, ApiError, type ReviewItem } from '../../api'
 import { reviewTypeText, reviewTypeClass, formatTime } from './adminShared'
 
@@ -12,6 +13,8 @@ const reviews = ref<ReviewItem[]>([])
 const reviewsLoading = ref(false)
 const actingKey = ref('')
 const rejectReason = ref('')
+
+const communityUrl = (id: string) => `https://www.nodeseek.com/space/${id}`
 
 async function loadReviews() {
   reviewsLoading.value = true
@@ -94,7 +97,23 @@ onMounted(loadReviews)
             <span class="review-name">{{ r.client_name }}</span>
             <code class="review-client-id">{{ r.client_id }}</code>
           </div>
-          <div class="ns-text-muted ns-small">owner: {{ r.owner_user_id }} · {{ formatTime(r.created_at) }}</div>
+          <div class="ns-text-muted ns-small ns-flex ns-align-center ns-gap-2 ns-flex-wrap">
+            <span>申请者：{{ r.owner_name || r.owner_user_id }}</span>
+            <n-tag v-if="r.owner_rank != null" size="small" round type="info">Lv{{ r.owner_rank }}</n-tag>
+            <n-button
+              size="tiny"
+              text
+              tag="a"
+              :href="communityUrl(r.owner_user_id)"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="社区主页"
+            >
+              <template #icon><ExternalLink :size="13" /></template>
+              社区主页
+            </n-button>
+            <span>· {{ formatTime(r.created_at) }}</span>
+          </div>
           <div v-if="r.detail" class="review-detail">{{ r.detail }}</div>
           <div class="review-actions">
             <n-button

@@ -201,6 +201,10 @@ func (a *API) handleAdminReview(w http.ResponseWriter, r *http.Request) {
 			target = "approved"
 		}
 		a.applyReview(w, req.ClientID, target, approve, req.Reason, ip)
+		// 审核结果邮件：申请者提交了通知邮箱则发（失败不阻塞审核）。
+		if client.NotifyEmail != "" && client.NotifyEnabled {
+			a.sendReviewResultMail(*client, approve, req.Reason)
+		}
 	case "pause":
 		if client.Status != "pause_request" {
 			writeError(w, http.StatusBadRequest, "当前应用不在暂停申请状态")

@@ -1,8 +1,29 @@
 <script setup lang="ts">
-// 管理后台 · 设置：邮件配置 + 系统信息
+// 管理后台 · 设置：邮件配置 + SMTP 运行时配置 + 系统信息
 import { onMounted, ref } from 'vue'
-import { NCard, NButton, NTag, NSpin, useMessage } from 'naive-ui'
-import { getAdminStatus, testMail, ApiError, type AdminStatus } from '../../api'
+import {
+  NCard,
+  NButton,
+  NTag,
+  NSpin,
+  NForm,
+  NFormItem,
+  NInput,
+  NInputNumber,
+  NSelect,
+  NSwitch,
+  NAlert,
+  useMessage,
+} from 'naive-ui'
+import {
+  getAdminStatus,
+  testMail,
+  getAdminSmtp,
+  saveAdminSmtp,
+  ApiError,
+  type AdminStatus,
+  type SmtpTlsMode,
+} from '../../api'
 import { formatTime } from './adminShared'
 
 const message = useMessage()
@@ -10,6 +31,33 @@ const message = useMessage()
 const status = ref<AdminStatus | null>(null)
 const loading = ref(false)
 const sendingMail = ref(false)
+
+// SMTP 表单
+const smtpLoading = ref(false)
+const smtpSaving = ref(false)
+const smtpLoaded = ref(false)
+const smtpForm = ref<{
+  host: string
+  port: number | null
+  tls: SmtpTlsMode | null
+  user: string
+  password: string
+  enabled: boolean
+}>({
+  host: '',
+  port: 587,
+  tls: 'starttls',
+  user: '',
+  password: '',
+  enabled: false,
+})
+const hasPassword = ref(false)
+
+const tlsOptions = [
+  { label: 'SSL/TLS', value: 'ssl' },
+  { label: 'STARTTLS', value: 'starttls' },
+  { label: '无加密', value: 'none' },
+]
 
 async function loadStatus() {
   loading.value = true
@@ -20,6 +68,58 @@ async function loadStatus() {
     message.error(e instanceof ApiError ? e.message : '获取状态失败')
   } finally {
     loading.value = false
+  }
+}
+
+async function loadSmtp() {
+  smtpLoading.value = true
+  try {
+    const resp = await getAdminSmtp()
+    smtpForm.value = {
+      host: resp.host || '',
+      port: resp.port || 587,
+      tls: (resp.tls || 'starttls') as SmtpTlsMode,
+      user: resp.user || '',
+      password: '',
+      enabled: resp.enabled,
+    }
+    hasPassword.value = resp.has_password
+    smtpLoaded.value = true
+  } catch (e) {
+    message.error(e instanceof ApiError ? e.message : '读取 SMTP 配置失败')
+  } finally {
+    smtpLoading.value = false
+  }
+}
+
+async function handleSaveSmtp() {
+  const f = smtpForm.value
+  if (!f.host.trim()) {
+    message.error('请填写 SMTP 服务器地址')
+    return
+  }
+  if (!f.port || f.port < 1 || f.port > 65535) {
+    message.error('端口必须在 1-65535')
+    return
+  }
+  smtpSaving.value = true
+  try {
+    const resp = await saveAdminSmtp({
+      host: f.host.trim(),
+      port: f.port,
+      tls: (f.tls || 'starttls') as SmtpTlsMode,
+      user: f.user.trim(),
+      password: f.password, // 空串 = 保留旧密码
+      enabled: f.enabled,
+    })
+    hasPassword.value = resp.has_password
+    f.password = ''
+    message.success('已保存并生效')
+    await loadSmtp()
+  } catch (e) {
+    message.error(e instanceof ApiError ? e.message : '保存 SMTP 配置失败')
+  } finally {
+    smtpSaving.value = false
   }
 }
 
@@ -36,7 +136,10 @@ async function handleTestMail() {
   }
 }
 
-onMounted(loadStatus)
+onMounted(() => {
+  loadStatus()
+  loadSmtp()
+})
 </script>
 
 <template>
@@ -80,6 +183,55 @@ onMounted(loadStatus)
         </span>
       </div>
 
+      <!-- SMTP 运行时配置 -->
+      <h2 class="ns-h6 ns-mt-4 ns-mb-3">SMTP 配置</h2>
+      <n-form class="admin-smtp-form" label-placement="top" label-width="auto">
+        <n-spin :show="smtpLoading">
+          <div v-if="smtpLoaded" class="smtp-grid">
+            <n-form-item label="服务器" class="admin-form-item">
+              <n-input v-model:value="smtpForm.host" size="small" placeholder="smtp.example.com" />
+            </n-form-item>
+            <n-form-item label="端口" class="admin-form-item">
+              <n-input-number
+                v-model:value="smtpForm.port"
+                size="small"
+                :min="1"
+                :max="65535"
+                placeholder="587"
+                style="width: 100%"
+              />
+            </n-form-item>
+            <n-form-item label="加密方式" class="admin-form-item">
+              <n-select v-model:value="smtpForm.tls" size="small" :options="tlsOptions" />
+            </n-form-item>
+            <n-form-item label="用户名" class="admin-form-item">
+              <n-input v-model:value="smtpForm.user" size="small" placeholder="登录用户名" />
+            </n-form-item>
+            <n-form-item label="密码" class="admin-form-item">
+              <n-input
+                v-model:value="smtpForm.password"
+                size="small"
+                type="password"
+                show-password-on="click"
+                :placeholder="hasPassword ? '不修改请留空（已设置）' : '设置密码'"
+              />
+            </n-form-item>
+            <n-form-item label="启用" class="admin-form-item">
+              <n-switch v-model:value="smtpForm.enabled" size="small" />
+            </n-form-item>
+          </div>
+          <n-alert v-if="smtpLoaded && !smtpForm.host" type="warning" class="ns-mt-2">
+            当前未配置 SMTP（显示环境变量默认值），保存后可持久化到 data/smtp.json 并热更新。
+          </n-alert>
+          <div class="ns-mt-3">
+            <n-button type="primary" size="small" :loading="smtpSaving" @click="handleSaveSmtp">保存</n-button>
+            <span v-if="hasPassword" class="ns-text-muted ns-small ns-mt-1 smtp-pass-hint">
+              密码已设置，留空保存将保留旧密码。
+            </span>
+          </div>
+        </n-spin>
+      </n-form>
+
       <!-- 系统信息 -->
       <h2 class="ns-h6 ns-mt-4 ns-mb-3">系统信息</h2>
       <div v-if="status" class="detail-row">
@@ -105,5 +257,20 @@ onMounted(loadStatus)
 <style scoped>
 .admin-page-card {
   border-radius: 6px;
+}
+
+.admin-smtp-form {
+  max-width: 640px;
+}
+
+.smtp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 16px;
+}
+
+.smtp-pass-hint {
+  display: inline-block;
+  margin-left: 8px;
 }
 </style>

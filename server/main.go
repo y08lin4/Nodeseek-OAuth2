@@ -50,6 +50,9 @@ func main() {
 	startedAt := time.Now()
 	go scheduleDailyReport(cfg, st, mail, cnt, aud, startedAt)
 
+	// 应用错误率告警调度（每 10 分钟检查一次）。
+	go scheduleErrorAlerts(st, mail, aud)
+
 	addr := ":" + cfg.Port
 	log.Printf("Nodeseek OAuth2 服务启动，监听 %s（mock_mode=%v）", addr, cfg.MockMode)
 	if err := http.ListenAndServe(addr, handler); err != nil {
@@ -70,6 +73,109 @@ func scheduleDailyReport(cfg *config.Config, st *store.Store, mail *mailer.Maile
 		}
 		cnt.Reset()
 	}
+}
+
+// scheduleErrorAlerts 每 10 分钟检查各应用近 1 小时授权失败率，超阈值且未达每日上限则发送告警邮件。
+func scheduleErrorAlerts(st *store.Store, mail *mailer.Mailer, aud *audit.Logger) {
+	tick := time.NewTicker(10 * time.Minute)
+	defer tick.Stop()
+	for range tick.C {
+		if err := checkErrorAlerts(st, mail, aud); err != nil {
+			log.Printf("错误率告警检查失败: %v", err)
+		}
+	}
+}
+
+// checkErrorAlerts 对每个 notify_enabled 且带 notify_email 的应用，聚合审计中近 1h 的
+// 授权成功/失败事件（按 client_id），当 fail≥5 且 fail_rate≥30% 时发送「应用错误率告警」邮件。
+// 每应用每天最多 1 封（记录在 client.LastErrorAlertAt，跨 day 后允许再次告警）。
+func checkErrorAlerts(st *store.Store, mail *mailer.Mailer, aud *audit.Logger) error {
+	clients, err := st.ListClients()
+	if err != nil {
+		return err
+	}
+	evs, err := aud.ReadRecent(20000)
+	if err != nil {
+		return err
+	}
+	// 近 1h 的窗口起点。
+	windowStart := time.Now().Add(-time.Hour)
+	// 按 client_id 聚合近 1h 的 ok / fail。
+	type agg struct {
+		ok   int
+		fail int
+	}
+	byClient := map[string]*agg{}
+	for _, e := range evs {
+		if e.ClientID == "" {
+			continue
+		}
+		t, terr := time.Parse(time.RFC3339Nano, e.TS)
+		if terr != nil || t.Before(windowStart) {
+			continue
+		}
+		switch e.Event {
+		case "authorize.code", "token.exchange.ok":
+			a := byClient[e.ClientID]
+			if a == nil {
+				a = &agg{}
+				byClient[e.ClientID] = a
+			}
+			a.ok++
+		case "gate.block", "token.exchange.fail":
+			a := byClient[e.ClientID]
+			if a == nil {
+				a = &agg{}
+				byClient[e.ClientID] = a
+			}
+			a.fail++
+		}
+	}
+
+	today := time.Now().Format("2006-01-02")
+	for i := range clients {
+		c := &clients[i]
+		if !c.NotifyEnabled || c.NotifyEmail == "" {
+			continue
+		}
+		a := byClient[c.ClientID]
+		if a == nil {
+			continue
+		}
+		total := a.ok + a.fail
+		if total == 0 || a.fail < 5 {
+			continue
+		}
+		rate := float64(a.fail) / float64(total) * 100.0
+		if rate < 30.0 {
+			continue
+		}
+		// 每日去重：LastErrorAlertAt 同日则跳过。
+		if c.LastErrorAlertAt != "" {
+			if t, terr := time.Parse(time.RFC3339, c.LastErrorAlertAt); terr == nil && t.Format("2006-01-02") == today {
+				continue
+			}
+		}
+		subject := "【NSAuth2】应用错误率告警"
+		body := fmt.Sprintf("应用「%s」最近 1 小时授权错误率升高。\n\n应用ID: %s\n近 1 小时失败次数: %d\n近 1 小时总请求: %d\n错误率: %.1f%%\n\n建议: 检查回调地址、密钥配置，或联系管理者排查。",
+			c.ClientName, c.ClientID, a.fail, total, rate)
+		var ev string
+		if err := mail.SendTo(c.NotifyEmail, subject, body); err != nil {
+			log.Printf("应用 %s 错误率告警邮件发送失败: %v", c.ClientID, err)
+			ev = "mail.send_fail"
+		} else {
+			ev = "system.error_alert"
+		}
+		aud.Eventf(ev, "", "", c.ClientID, fmt.Sprintf("fail=%d rate=%.1f%%", a.fail, rate))
+		// 记录告警时间以做每日去重。
+		now := time.Now().UTC().Format(time.RFC3339)
+		if _, uerr := st.UpdateClient(c.ClientID, func(u *store.Client) {
+			u.LastErrorAlertAt = now
+		}); uerr != nil {
+			log.Printf("记录应用 %s 告警时间失败: %v", c.ClientID, uerr)
+		}
+	}
+	return nil
 }
 
 // nextReportTime 计算下一个 NS_REPORT_TIME（本地时区 HH:MM）。

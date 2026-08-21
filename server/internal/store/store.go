@@ -33,6 +33,10 @@ type Client struct {
 	Builtin          bool        `json:"builtin"`               // 内置应用（不可被 owner 暂停/删除）
 	Scopes           []string    `json:"scopes"`
 	CreatedAt        string      `json:"created_at"`
+	NotifyEmail      string      `json:"notify_email,omitempty"`      // 审核/告警通知邮箱（可选）
+	NotifyEnabled    bool        `json:"notify_enabled"`              // 通知开关（默认 true）
+	NotifyToken      string      `json:"notify_token,omitempty"`      // 取消订阅 token（32hex）
+	LastErrorAlertAt string      `json:"last_error_alert_at,omitempty"` // 最近一次错误率告警时间
 }
 
 // ClientStats 应用授权统计（data/clients.json 的 stats 字段）。
@@ -83,6 +87,26 @@ type Account struct {
 	LastError       string `json:"last_error"`
 	FailCount       int    `json:"fail_count"`
 	AutoDetected    bool   `json:"auto_detected"`
+}
+
+// User 服务端记录的用户（data/users.json，登录 confirm 成功时 upsert）。
+type User struct {
+	UserID      string `json:"user_id"`
+	Name        string `json:"name"`
+	FirstSeen   string `json:"first_seen"`  // 首次登录时间（RFC3339）
+	LastSeen    string `json:"last_seen"`   // 最近登录时间（RFC3339）
+	LoginCount  int    `json:"login_count"` // 登录次数
+	Blacklisted bool   `json:"blacklisted"` // 是否被服务端禁用
+}
+
+// SMTPConfig SMTP 运行时配置（data/smtp.json；password 用 AES-256-GCM 加密，密文.nonce）。
+type SMTPConfig struct {
+	Host           string `json:"host"`
+	Port           int    `json:"port"`
+	TLSMode        string `json:"tls_mode"`      // starttls|ssl|none
+	User           string `json:"user"`
+	PasswordCipher string `json:"password_cipher"` // "ciphertextB64.nonceB64"
+	Enabled        bool   `json:"enabled"`
 }
 
 // Store 线程安全的 JSON 文件存储。
@@ -790,4 +814,262 @@ func (s *Store) GetAccountCookie(accountID string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// ---- 用户（users.json） ----
+
+func (s *Store) readUsers() ([]User, error) {
+	var us []User
+	if err := s.readJSON("users.json", &us); err != nil {
+		return nil, err
+	}
+	return us, nil
+}
+
+// UpsertUser 登录成功时 upsert 用户记录：已存在则更新 name/last_seen/login_count++，
+// 不存在则新建（first_seen=last_seen=now，login_count=1，blacklisted=false）。
+func (s *Store) UpsertUser(userID, name string) (*User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	us, err := s.readUsers()
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		us = []User{}
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	for i := range us {
+		if us[i].UserID == userID {
+			us[i].Name = name
+			us[i].LastSeen = now
+			us[i].LoginCount++
+			if err := s.writeJSON("users.json", us); err != nil {
+				return nil, err
+			}
+			return &us[i], nil
+		}
+	}
+	us = append(us, User{UserID: userID, Name: name, FirstSeen: now, LastSeen: now, LoginCount: 1})
+	if err := s.writeJSON("users.json", us); err != nil {
+		return nil, err
+	}
+	return &us[len(us)-1], nil
+}
+
+// ListUsers 返回全部用户。
+func (s *Store) ListUsers() ([]User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	us, err := s.readUsers()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []User{}, nil
+		}
+		return nil, err
+	}
+	return us, nil
+}
+
+// GetUser 按 user_id 查找用户，不存在返回 (nil, nil)。
+func (s *Store) GetUser(userID string) (*User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	us, err := s.readUsers()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	for i := range us {
+		if us[i].UserID == userID {
+			return &us[i], nil
+		}
+	}
+	return nil, nil
+}
+
+// SetUserBlacklisted 设置用户黑名单状态；不存在返回 (nil, nil)。
+func (s *Store) SetUserBlacklisted(userID string, blacklisted bool) (*User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	us, err := s.readUsers()
+	if err != nil {
+		return nil, err
+	}
+	for i := range us {
+		if us[i].UserID == userID {
+			us[i].Blacklisted = blacklisted
+			if err := s.writeJSON("users.json", us); err != nil {
+				return nil, err
+			}
+			return &us[i], nil
+		}
+	}
+	return nil, nil
+}
+
+// ---- SMTP 配置（smtp.json） ----
+
+func (s *Store) readSMTPConfig() (*SMTPConfig, error) {
+	cfg := &SMTPConfig{}
+	if err := s.readJSON("smtp.json", cfg); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// GetSMTPConfig 返回 SMTP 配置（密码字段已脱敏置空，永不对外明文）。
+func (s *Store) GetSMTPConfig() (*SMTPConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	cfg, err := s.readSMTPConfig()
+	if err != nil || cfg == nil {
+		return cfg, err
+	}
+	out := *cfg
+	out.PasswordCipher = "" // 永不对外明文
+	return &out, nil
+}
+
+// DecryptSMTPPassword 解密 SMTP 密码明文（供 mailer 热更新使用）。
+func (s *Store) DecryptSMTPPassword(cipher string) (string, error) {
+	if cipher == "" {
+		return "", nil
+	}
+	parts := strings.SplitN(cipher, ".", 2)
+	if len(parts) != 2 {
+		return "", errors.New("SMTP 密码密文格式错误")
+	}
+	plain, err := auth.Decrypt(s.key, parts[0], parts[1])
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
+}
+
+// SaveSMTPConfig 保存 SMTP 配置（password 明文字符串；空串表示保留旧密码）。
+// 返回保存后的配置（PasswordCipher 置空，PasswordPlain 为新生效密码明文）。
+func (s *Store) SaveSMTPConfig(host string, port int, tlsMode, user, password string, enabled bool) (*SMTPConfig, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 读旧配置以保留旧密码（仅当本次 password 为空串）。
+	var prevCipher string
+	if old, err := s.readSMTPConfig(); err == nil && old != nil {
+		prevCipher = old.PasswordCipher
+	}
+
+	cipher := prevCipher
+	if password != "" {
+		ct, nonce, err := auth.Encrypt(s.key, []byte(password))
+		if err != nil {
+			return nil, "", err
+		}
+		cipher = ct + "." + nonce
+	}
+
+	cfg := &SMTPConfig{
+		Host:           host,
+		Port:           port,
+		TLSMode:        tlsMode,
+		User:           user,
+		PasswordCipher: cipher,
+		Enabled:        enabled,
+	}
+	if err := s.writeJSON("smtp.json", cfg); err != nil {
+		return nil, "", err
+	}
+	plain, _ := s.decryptCipher(cipher)
+	out := *cfg
+	out.PasswordCipher = ""
+	return &out, plain, nil
+}
+
+func (s *Store) decryptCipher(cipher string) (string, error) {
+	if cipher == "" {
+		return "", nil
+	}
+	parts := strings.SplitN(cipher, ".", 2)
+	if len(parts) != 2 {
+		return "", errors.New("密文格式错误")
+	}
+	plain, err := auth.Decrypt(s.key, parts[0], parts[1])
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
+}
+
+// ---- 授权记录聚合（grants/tokens） ----
+
+// CountUserGrants 返回某用户的 active 授权数。
+func (s *Store) CountUserGrants(userID string) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	gs, err := s.readGrants()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	n := 0
+	for i := range gs {
+		if gs[i].UserID == userID && gs[i].Status == "active" {
+			n++
+		}
+	}
+	return n, nil
+}
+
+// CountTokenExchanges 返回某 user+client 的 access_token 兑换次数（tokens.json 条目数）。
+func (s *Store) CountTokenExchanges(userID, clientID string) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	ts, err := s.readTokens()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	n := 0
+	for i := range ts {
+		if ts[i].UserID == userID && ts[i].ClientID == clientID {
+			n++
+		}
+	}
+	return n, nil
+}
+
+// ListGrantsAdmin 返回全部授权记录（用于管理端，可选过滤）。
+func (s *Store) ListGrantsAdmin(userID, clientID, status string) ([]Grant, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	gs, err := s.readGrants()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []Grant{}, nil
+		}
+		return nil, err
+	}
+	out := make([]Grant, 0, len(gs))
+	for i := range gs {
+		if userID != "" && gs[i].UserID != userID {
+			continue
+		}
+		if clientID != "" && gs[i].ClientID != clientID {
+			continue
+		}
+		if status != "" && gs[i].Status != status {
+			continue
+		}
+		out = append(out, gs[i])
+	}
+	return out, nil
 }

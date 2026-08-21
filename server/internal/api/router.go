@@ -87,6 +87,7 @@ func NewRouter(cfg *config.Config, st *store.Store, ns *nodeseek.Client, key [32
 	mux.HandleFunc("POST /api/grants/{client_id}/revoke", a.handleGrantRevoke)
 	mux.HandleFunc("POST /api/logout", a.handleLogout)
 	mux.HandleFunc("GET /api/me", a.handleMe)
+	mux.HandleFunc("GET /api/client/notifications/unsubscribe", a.handleClientNotifyUnsubscribe)
 	mux.HandleFunc("POST /api/admin/login", a.handleAdminLogin)
 	mux.HandleFunc("POST /api/admin/logout", a.handleAdminLogout)
 	mux.HandleFunc("POST /api/admin/cookie", a.handleAdminCookie)
@@ -101,6 +102,16 @@ func NewRouter(cfg *config.Config, st *store.Store, ns *nodeseek.Client, key [32
 	mux.HandleFunc("GET /api/admin/clients", a.handleAdminClients)
 	mux.HandleFunc("GET /api/admin/stats", a.handleAdminStats)
 	mux.HandleFunc("GET /api/admin/audit", a.handleAdminAudit)
+	mux.HandleFunc("GET /api/admin/smtp", a.handleAdminSMTPGet)
+	mux.HandleFunc("POST /api/admin/smtp", a.handleAdminSMTPPost)
+	mux.HandleFunc("GET /api/admin/users", a.handleAdminUsers)
+	mux.HandleFunc("GET /api/admin/users/{user_id}/detail", a.handleAdminUserDetail)
+	mux.HandleFunc("GET /api/admin/users/{user_id}/stats", a.handleAdminUserStats)
+	mux.HandleFunc("PATCH /api/admin/users/{user_id}", a.handleAdminUserPatch)
+	mux.HandleFunc("GET /api/admin/grants", a.handleAdminGrants)
+	mux.HandleFunc("POST /api/admin/clients/{client_id}/reset-secret", a.handleAdminResetSecret)
+	mux.HandleFunc("GET /api/admin/export/users.csv", a.handleAdminExportUsers)
+	mux.HandleFunc("GET /api/admin/export/grants.csv", a.handleAdminExportGrants)
 	mux.HandleFunc("GET /healthz", a.handleHealthz)
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", a.handleWellKnown)
 	mux.HandleFunc("/", a.handleStatic)
@@ -226,6 +237,20 @@ func (a *API) validAdminSession(id string) bool {
 	return true
 }
 
+// checkUserBlocked 校验用户是否被拉黑；若被拉黑则写 403 并记审计 user.blocked，返回 true（已拦截）。
+func (a *API) checkUserBlocked(w http.ResponseWriter, ip, userID string) bool {
+	u, err := a.store.GetUser(userID)
+	if err != nil {
+		return false // 读取失败不拦截（fail-open 读失败属存储异常，放行）
+	}
+	if u != nil && u.Blacklisted {
+		a.audit.Eventf("user.blocked", ip, userID, "", "该账号已被服务禁用")
+		writeError(w, http.StatusForbidden, "该账号已被服务禁用")
+		return true
+	}
+	return false
+}
+
 // fullRequestURL 重建当前请求的完整 URL（用于登录后跳转）。
 func fullRequestURL(r *http.Request) string {
 	scheme := "http"
@@ -347,6 +372,8 @@ func clientListJSON(c store.Client) map[string]any {
 		"disabled":      c.Disabled,
 		"stats":         clientStatsJSON(c.Stats),
 		"created_at":    c.CreatedAt,
+		"notify_email":   c.NotifyEmail,
+		"notify_enabled": c.NotifyEnabled,
 	}
 }
 
@@ -366,6 +393,8 @@ func clientOwnerJSON(c store.Client) map[string]any {
 		"disabled":      c.Disabled,
 		"stats":         clientStatsJSON(c.Stats),
 		"created_at":    c.CreatedAt,
+		"notify_email":   c.NotifyEmail,
+		"notify_enabled": c.NotifyEnabled,
 	}
 }
 
@@ -379,6 +408,28 @@ func isHTTPURL(u string) bool {
 		return false
 	}
 	return p.Host != ""
+}
+
+// isValidEmail 轻量校验邮箱格式（本地部分 + @ + 域名包含点）。
+func isValidEmail(s string) bool {
+	if len(s) > 254 {
+		return false
+	}
+	at := strings.LastIndex(s, "@")
+	if at <= 0 || at == len(s)-1 {
+		return false
+	}
+	local := s[:at]
+	domain := s[at+1:]
+	if local == "" || domain == "" || !strings.Contains(domain, ".") {
+		return false
+	}
+	for _, r := range s {
+		if r > 127 {
+			return false
+		}
+	}
+	return true
 }
 
 // sha256Hex 返回字符串的 SHA-256 十六进制摘要。
@@ -608,6 +659,10 @@ func (a *API) handleVerify(w http.ResponseWriter, r *http.Request) {
 		a.denyRate(w, ip, req.UserID, "", "verify")
 		return
 	}
+	// 黑名单拦截（fail-closed）。
+	if a.checkUserBlocked(w, ip, req.UserID) {
+		return
+	}
 
 	code := verificationCodePrefix + randomHex(8, true)
 	exp := time.Now().Add(verificationCodeExpirySeconds * time.Second).Unix()
@@ -650,6 +705,10 @@ func (a *API) handleConfirm(w http.ResponseWriter, r *http.Request) {
 	ip := remoteIP(r)
 	if !a.limits.confirmIP.Allow("ip:"+ip) || !a.limits.confirmUID.Allow("uid:"+req.UserID) {
 		a.denyRate(w, ip, req.UserID, "", "confirm")
+		return
+	}
+	// 黑名单拦截（fail-closed）。
+	if a.checkUserBlocked(w, ip, req.UserID) {
 		return
 	}
 
@@ -758,10 +817,19 @@ func (a *API) handleConfirm(w http.ResponseWriter, r *http.Request) {
 		redirectTo = "/"
 	}
 
-	// 顺带拉取用户信息；失败时 stats 为 null，不阻塞登录。
+	// 顺带拉取用户信息并记录用户表；失败时 stats 为 null，不阻塞登录。
 	var statsPayload any
-	if stats, err := a.ns.FetchUserStats(req.UserID); err == nil {
-		statsPayload = statsJSON(stats)
+	if profile, err := a.ns.FetchUserProfile(req.UserID); err == nil {
+		statsPayload = statsJSON(profile.Stats)
+		// upsert 用户记录（name 取 getInfo member_name）。
+		if _, uerr := a.store.UpsertUser(req.UserID, profile.MemberName); uerr != nil {
+			log.Printf("upsert 用户记录失败: %v", uerr)
+		}
+	} else {
+		// getInfo 失败仍记录用户（无昵称），保证登录计数不丢失。
+		if _, uerr := a.store.UpsertUser(req.UserID, ""); uerr != nil {
+			log.Printf("upsert 用户记录失败: %v", uerr)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -825,9 +893,17 @@ func (a *API) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if a.currentSession(r) == nil {
+	sess := a.currentSession(r)
+	if sess == nil {
 		next := fullRequestURL(r)
 		http.Redirect(w, r, "/login?next="+url.QueryEscape(next), http.StatusFound)
+		return
+	}
+	// 黑名单拦截（fail-closed）。
+	if u, err := a.store.GetUser(sess.UserID); err == nil && u != nil && u.Blacklisted {
+		ip := remoteIP(r)
+		a.audit.Eventf("user.blocked", ip, u.UserID, clientID, "该账号已被服务禁用")
+		writeError(w, http.StatusForbidden, "该账号已被服务禁用")
 		return
 	}
 	// 已登录：返回 SPA HTML，由前端渲染授权确认页。
@@ -839,6 +915,13 @@ func (a *API) handleDecision(w http.ResponseWriter, r *http.Request) {
 	sess := a.currentSession(r)
 	if sess == nil {
 		writeError(w, http.StatusUnauthorized, "需要登录")
+		return
+	}
+	// 黑名单拦截（fail-closed）。
+	if u, err := a.store.GetUser(sess.UserID); err == nil && u != nil && u.Blacklisted {
+		ip := remoteIP(r)
+		a.audit.Eventf("user.blocked", ip, sess.UserID, "", "该账号已被服务禁用")
+		writeError(w, http.StatusForbidden, "该账号已被服务禁用")
 		return
 	}
 
@@ -1002,9 +1085,15 @@ func (a *API) handleClientRegister(w http.ResponseWriter, r *http.Request) {
 		IconURL      string   `json:"icon_url"`
 		MinRank      int      `json:"min_rank"`
 		TokenTTL     int      `json:"token_ttl"`
+		NotifyEmail  string   `json:"notify_email"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "请求体格式错误")
+		return
+	}
+	// notify_email 可选：非空时须为合法邮箱（非法则 400 明确拒绝）。
+	if req.NotifyEmail != "" && !isValidEmail(req.NotifyEmail) {
+		writeError(w, http.StatusBadRequest, "notify_email 格式不正确")
 		return
 	}
 
@@ -1091,6 +1180,9 @@ func (a *API) handleClientRegister(w http.ResponseWriter, r *http.Request) {
 		Builtin:          false,
 		Scopes:           []string{},
 		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		NotifyEmail:      req.NotifyEmail,
+		NotifyEnabled:    true,
+		NotifyToken:      randomHex(32, false),
 	}
 	if err := a.store.AddClient(client); err != nil {
 		writeError(w, http.StatusInternalServerError, "存储应用失败")
@@ -1133,6 +1225,28 @@ func (a *API) sendReviewNotify(c store.Client) {
 		} else {
 			a.audit.Eventf("mail.sent", "", "", c.ClientID, "新应用待审核")
 		}
+	}()
+}
+
+// sendReviewResultMail 发送「应用审核结果」邮件给应用创建者提交的通知邮箱。
+// 失败不阻塞审核流程（仅记日志与审计）。
+func (a *API) sendReviewResultMail(c store.Client, approve bool, reason string) {
+	result := "通过"
+	step := "应用已上线，可正常发起授权。"
+	if !approve {
+		result = "未通过"
+		step = "请根据拒绝理由修改后重新提交，或在控制台删除后重新注册。"
+	}
+	subject := "【NSAuth2】应用审核结果"
+	body := fmt.Sprintf("应用「%s」的审核结果为：%s\n\n应用ID: %s\n拒绝理由: %s\n\n下一步: %s",
+		c.ClientName, result, c.ClientID, reason, step)
+	go func() {
+		ev := "mail.review_result"
+		if err := a.mail.Send(subject, body); err != nil {
+			log.Printf("审核结果邮件发送失败: %v", err)
+			ev = "mail.send_fail"
+		}
+		a.audit.Eventf(ev, "", "", c.ClientID, result)
 	}()
 }
 
@@ -1359,6 +1473,49 @@ func (a *API) handleMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"success": true, "user_id": sess.UserID})
 }
 
+// handleClientNotifyUnsubscribe GET /api/client/notifications/unsubscribe?token={notify_token}
+// 应用所有者通过邮件内链接关闭通知（token 泄露面=邮件持有者）。返回简单绿色提示页，无需登录。
+func (a *API) handleClientNotifyUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		writeHTML(w, notifyUnsubscribeHTML(true, "参数缺失", ""))
+		return
+	}
+	cs, err := a.store.ListClients()
+	if err != nil {
+		writeHTML(w, notifyUnsubscribeHTML(true, "系统错误，请稍后重试", ""))
+		return
+	}
+	for i := range cs {
+		if cs[i].NotifyToken == token {
+			if _, uerr := a.store.UpdateClient(cs[i].ClientID, func(c *store.Client) {
+				c.NotifyEnabled = false
+			}); uerr != nil {
+				writeHTML(w, notifyUnsubscribeHTML(true, "系统错误，请稍后重试", cs[i].ClientName))
+				return
+			}
+			a.audit.Eventf("client.notify_off", "", "", cs[i].ClientID, "用户通过链接关闭通知")
+			writeHTML(w, notifyUnsubscribeHTML(false, "", cs[i].ClientName))
+			return
+		}
+	}
+	writeHTML(w, notifyUnsubscribeHTML(true, "链接无效或已失效", ""))
+}
+
+func notifyUnsubscribeHTML(err bool, msg, appName string) string {
+	head := "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>通知设置</title></head><body style=\"font-family:system-ui,sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0\">"
+	cardStyle := "background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,.08);text-align:center;max-width:420px"
+	titleColor := "#1a7f37"
+	title := "✅ 通知已关闭"
+	sub := "你已关闭应用 " + appName + " 的审核与错误率告警通知。"
+	if err {
+		titleColor = "#c0392b"
+		title = "⚠️ 操作未完成"
+		sub = msg
+	}
+	return head + "<div style=\"" + cardStyle + "\"><h2 style=\"color:" + titleColor + ";margin:0 0 12px\">" + title + "</h2><p style=\"color:#666;margin:0\">" + sub + "</p><p style=\"color:#aaa;margin-top:24px;font-size:12px\">Nodeseek OAuth2</p></div></body></html>"
+}
+
 // handleAdminLogin POST /api/admin/login（JSON {"token":"..."}）管理端登录。
 // 成功 → 200 + Set-Cookie ns_admin_session；失败 → 401；登录失败限流（每 IP 10/min）。
 func (a *API) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
@@ -1546,11 +1703,22 @@ func (a *API) handleAdminCookie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.audit.Eventf("admin.cookie.update", ip, "", "", accountID)
+
+	// 顺带拉取账号等级信息（供扩展向导显示）；失败为 null 不阻塞。
+	var statsPayload any
+	if st, err := a.ns.FetchUserStats(accountID); err == nil {
+		statsPayload = map[string]any{
+			"rank":      st.Rank,
+			"join_days": st.JoinDays,
+			"coin":      st.Chicken,
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success":      true,
 		"account_id":   acc.AccountID,
 		"account_name": acc.AccountName,
 		"updated_at":   acc.UpdatedAt,
+		"stats":        statsPayload,
 	})
 }
 
@@ -1663,7 +1831,446 @@ func (a *API) handleAdminClients(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleAdminStats GET /api/admin/stats（X-Admin-Token）返回进程内计数快照与 Reset 时间。
+// handleAdminSMTPGet GET /api/admin/smtp（X-Admin-Token）返回 SMTP 配置（密码脱敏）。
+func (a *API) handleAdminSMTPGet(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	cfg, err := a.store.GetSMTPConfig()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取 SMTP 配置失败")
+		return
+	}
+	if cfg == nil {
+		// 未保存过：返回环境变量默认值（脱敏）。
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"host":        a.cfg.SMTPHost,
+			"port":        a.cfg.SMTPPort,
+			"tls":         a.cfg.SMTPTLS,
+			"user":        a.cfg.SMTPUser,
+			"has_password": a.cfg.SMTPPass != "",
+			"enabled":     a.cfg.SMTPHost != "",
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"host":        cfg.Host,
+		"port":        cfg.Port,
+		"tls":         cfg.TLSMode,
+		"user":        cfg.User,
+		"has_password": cfg.PasswordCipher != "",
+		"enabled":     cfg.Enabled,
+	})
+}
+
+// handleAdminSMTPPost POST /api/admin/smtp（X-Admin-Token）保存 SMTP 配置并热更新 mailer。
+func (a *API) handleAdminSMTPPost(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	var req struct {
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		TLS      string `json:"tls"`
+		User     string `json:"user"`
+		Password string `json:"password"` // 空串 = 保留旧密码
+		Enabled  bool   `json:"enabled"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "请求体格式错误")
+		return
+	}
+	if req.TLS != "" && req.TLS != "starttls" && req.TLS != "ssl" && req.TLS != "none" {
+		writeError(w, http.StatusUnprocessableEntity, "tls 必须为 starttls|ssl|none")
+		return
+	}
+	if req.Port < 1 || req.Port > 65535 {
+		writeError(w, http.StatusUnprocessableEntity, "port 必须在 1-65535")
+		return
+	}
+	if req.TLS == "" {
+		req.TLS = "starttls"
+	}
+
+	saved, plain, err := a.store.SaveSMTPConfig(req.Host, req.Port, req.TLS, req.User, req.Password, req.Enabled)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "保存 SMTP 配置失败")
+		return
+	}
+	// 热更新 mailer（后续发信立即生效）。
+	if a.mail != nil {
+		a.mail.UpdateConfig(req.Host, req.Port, req.TLS, req.User, plain, req.Enabled)
+	}
+	a.audit.Eventf("admin.smtp.update", remoteIP(r), "", "", fmt.Sprintf("%s:%d enabled=%v", req.Host, req.Port, req.Enabled))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":      true,
+		"host":        saved.Host,
+		"port":        saved.Port,
+		"tls":         saved.TLSMode,
+		"user":        saved.User,
+		"has_password": saved.PasswordCipher != "",
+		"enabled":     saved.Enabled,
+	})
+}
+
+// userAdminJSON 用户管理列表用的 user 对象（含 grant_count）。
+func (a *API) userAdminJSON(u store.User) map[string]any {
+	grantCount, err := a.store.CountUserGrants(u.UserID)
+	if err != nil {
+		grantCount = 0
+	}
+	return map[string]any{
+		"user_id":     u.UserID,
+		"name":        u.Name,
+		"first_seen":  u.FirstSeen,
+		"last_seen":   u.LastSeen,
+		"login_count": u.LoginCount,
+		"grant_count": grantCount,
+		"blacklisted": u.Blacklisted,
+	}
+}
+
+// handleAdminUsers GET /api/admin/users（X-Admin-Token）返回用户列表（按 last_seen 倒序）。
+func (a *API) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	us, err := a.store.ListUsers()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取用户列表失败")
+		return
+	}
+	sort.SliceStable(us, func(i, j int) bool { return us[i].LastSeen > us[j].LastSeen })
+	users := make([]map[string]any, 0, len(us))
+	today := time.Now().Format("2006-01-02")
+	activeToday := 0
+	for i := range us {
+		users = append(users, a.userAdminJSON(us[i]))
+		if t, err := time.Parse(time.RFC3339, us[i].LastSeen); err == nil && t.Format("2006-01-02") == today {
+			activeToday++
+		}
+	}
+	a.audit.Eventf("admin.users.view", remoteIP(r), "", "", fmt.Sprintf("list=%d", len(users)))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"users":   users,
+		"summary": map[string]any{
+			"total":        len(users),
+			"active_today": activeToday,
+		},
+	})
+}
+
+// handleAdminUserDetail GET /api/admin/users/{user_id}/detail 用户详情（实时拉 NS stats）。
+func (a *API) handleAdminUserDetail(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	userID := r.PathValue("user_id")
+	u, err := a.store.GetUser(userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取用户失败")
+		return
+	}
+	if u == nil {
+		writeError(w, http.StatusNotFound, "用户不存在")
+		return
+	}
+	// 实时拉取 NS stats；失败为 null 不阻塞。
+	var statsPayload any
+	if profile, err := a.ns.FetchUserProfile(userID); err == nil {
+		statsPayload = map[string]any{
+			"rank":      profile.Stats.Rank,
+			"join_days": profile.Stats.JoinDays,
+			"coin":      profile.Stats.Chicken,
+			"topics":    profile.Stats.Topics,
+			"comments":  profile.Stats.Comments,
+		}
+	}
+	a.audit.Eventf("admin.user.detail", remoteIP(r), "", "", userID)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"user": map[string]any{
+			"user_id":     u.UserID,
+			"name":        u.Name,
+			"first_seen":  u.FirstSeen,
+			"last_seen":   u.LastSeen,
+			"login_count": u.LoginCount,
+			"blacklisted": u.Blacklisted,
+		},
+		"stats": statsPayload,
+	})
+}
+
+// handleAdminUserStats GET /api/admin/users/{user_id}/stats 今日/累计统计（审计聚合）。
+func (a *API) handleAdminUserStats(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	userID := r.PathValue("user_id")
+	u, err := a.store.GetUser(userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取用户失败")
+		return
+	}
+	if u == nil {
+		writeError(w, http.StatusNotFound, "用户不存在")
+		return
+	}
+	evs, err := a.audit.ReadRecent(20000)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取审计失败")
+		return
+	}
+	today := time.Now().Format("2006-01-02")
+	var okToday, failToday, okTotal, failTotal, authOKTotal, authFailTotal int
+	for _, e := range evs {
+		if e.UserID != userID {
+			continue
+		}
+		isToday := false
+		if t, terr := time.Parse(time.RFC3339Nano, e.TS); terr == nil && t.Format("2006-01-02") == today {
+			isToday = true
+		}
+		switch e.Event {
+		case "login.confirm.ok":
+			okTotal++
+			if isToday {
+				okToday++
+			}
+		case "login.confirm.fail":
+			failTotal++
+			if isToday {
+				failToday++
+			}
+		case "authorize.code":
+			authOKTotal++
+		case "gate.block":
+			authFailTotal++
+		}
+	}
+	a.audit.Eventf("admin.user.stats", remoteIP(r), "", "", userID)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"stats": map[string]any{
+			"login_ok_today":      okToday,
+			"login_fail_today":    failToday,
+			"login_ok_total":      okTotal,
+			"login_fail_total":    failTotal,
+			"authorize_ok_total":  authOKTotal,
+			"authorize_fail_total": authFailTotal,
+		},
+	})
+}
+
+// handleAdminUserPatch PATCH /api/admin/users/{user_id} 设置黑名单（拉黑时吊销 token+授权）。
+func (a *API) handleAdminUserPatch(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	userID := r.PathValue("user_id")
+	var req struct {
+		Blacklisted *bool `json:"blacklisted"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "请求体格式错误")
+		return
+	}
+	if req.Blacklisted == nil {
+		writeError(w, http.StatusUnprocessableEntity, "缺少 blacklisted 字段")
+		return
+	}
+	u, err := a.store.SetUserBlacklisted(userID, *req.Blacklisted)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "设置黑名单失败")
+		return
+	}
+	if u == nil {
+		writeError(w, http.StatusNotFound, "用户不存在")
+		return
+	}
+	if *req.Blacklisted {
+		// 拉黑只拦新：黑名单拦截由 checkUserBlocked 在 verify/confirm/authorize 入口 fail-closed 生效。
+		// 已签发的 access_token 短 TTL 自然过期，不主动吊销，也不撤销已授权记录。
+		a.audit.Eventf("user.blacklist", remoteIP(r), "", "", userID)
+	} else {
+		a.audit.Eventf("user.unblacklist", remoteIP(r), "", "", userID)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":     true,
+		"blacklisted": *req.Blacklisted,
+	})
+}
+
+// handleAdminGrants GET /api/admin/grants 授权记录（过滤 user_id/client_id/status + 昵称 join）。
+func (a *API) handleAdminGrants(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	q := r.URL.Query()
+	userID := q.Get("user_id")
+	clientID := q.Get("client_id")
+	status := q.Get("status")
+
+	gs, err := a.store.ListGrantsAdmin(userID, clientID, status)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取授权记录失败")
+		return
+	}
+	sort.SliceStable(gs, func(i, j int) bool { return gs[i].GrantedAt > gs[j].GrantedAt })
+
+	grants := make([]map[string]any, 0, len(gs))
+	for i := range gs {
+		g := gs[i]
+		userName := ""
+		if u, err := a.store.GetUser(g.UserID); err == nil && u != nil {
+			userName = u.Name
+		}
+		clientName := ""
+		if c, err := a.store.GetClient(g.ClientID); err == nil && c != nil {
+			clientName = c.ClientName
+		}
+		exCount, _ := a.store.CountTokenExchanges(g.UserID, g.ClientID)
+		grants = append(grants, map[string]any{
+			"user_id":              g.UserID,
+			"user_name":            userName,
+			"client_id":            g.ClientID,
+			"client_name":          clientName,
+			"scope":                "user",
+			"created_at":           g.GrantedAt,
+			"updated_at":           g.GrantedAt,
+			"status":               g.Status,
+			"revoked_at":           g.RevokedAt,
+			"token_exchange_count": exCount,
+		})
+	}
+	a.audit.Eventf("admin.grants.view", remoteIP(r), "", "", fmt.Sprintf("list=%d", len(grants)))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"grants":  grants,
+	})
+}
+
+// handleAdminResetSecret POST /api/admin/clients/{client_id}/reset-secret 重置应用 secret。
+func (a *API) handleAdminResetSecret(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	clientID := r.PathValue("client_id")
+	client, err := a.store.GetClient(clientID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取客户端失败")
+		return
+	}
+	if client == nil {
+		writeError(w, http.StatusNotFound, "客户端不存在")
+		return
+	}
+	secret := randomHex(32, false)
+	_, err = a.store.UpdateClient(clientID, func(c *store.Client) {
+		c.ClientSecretHash = sha256Hex(secret)
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "重置 secret 失败")
+		return
+	}
+	a.audit.Eventf("admin.client.reset_secret", remoteIP(r), "", clientID, "")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":       true,
+		"client_id":     clientID,
+		"client_secret": secret,
+	})
+}
+
+// buildUsersCSV 构造用户列表 CSV（带 UTF-8 BOM）。
+func buildUsersCSV(users []store.User, counts map[string]int) string {
+	var b strings.Builder
+	b.WriteString("\ufeff")
+	b.WriteString("user_id,name,first_seen,last_seen,login_count,grant_count,blacklisted\n")
+	for _, u := range users {
+		count := counts[u.UserID]
+		black := "false"
+		if u.Blacklisted {
+			black = "true"
+		}
+		b.WriteString(strings.Join([]string{
+			u.UserID, u.Name, u.FirstSeen, u.LastSeen,
+			strconv.Itoa(u.LoginCount), strconv.Itoa(count), black,
+		}, ","))
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// writeCSV 写 CSV 下载响应（text/csv + Content-Disposition attachment）。
+func (a *API) writeCSV(w http.ResponseWriter, filename, content string) {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, content)
+}
+
+// handleAdminExportUsers GET /api/admin/export/users.csv 导出用户列表。
+func (a *API) handleAdminExportUsers(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	us, err := a.store.ListUsers()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取用户列表失败")
+		return
+	}
+	sort.SliceStable(us, func(i, j int) bool { return us[i].LastSeen > us[j].LastSeen })
+	counts := map[string]int{}
+	for i := range us {
+		if c, err := a.store.CountUserGrants(us[i].UserID); err == nil {
+			counts[us[i].UserID] = c
+		}
+	}
+	a.audit.Eventf("admin.export.users", remoteIP(r), "", "", fmt.Sprintf("rows=%d", len(us)))
+	a.writeCSV(w, "users.csv", buildUsersCSV(us, counts))
+}
+
+// handleAdminExportGrants GET /api/admin/export/grants.csv 导出授权记录。
+func (a *API) handleAdminExportGrants(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	q := r.URL.Query()
+	gs, err := a.store.ListGrantsAdmin(q.Get("user_id"), q.Get("client_id"), q.Get("status"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取授权记录失败")
+		return
+	}
+	sort.SliceStable(gs, func(i, j int) bool { return gs[i].GrantedAt > gs[j].GrantedAt })
+	var b strings.Builder
+	b.WriteString("\ufeff")
+	b.WriteString("user_id,user_name,client_id,client_name,scope,created_at,status,revoked_at,token_exchange_count\n")
+	for i := range gs {
+		g := gs[i]
+		userName := ""
+		if u, err := a.store.GetUser(g.UserID); err == nil && u != nil {
+			userName = u.Name
+		}
+		clientName := ""
+		if c, err := a.store.GetClient(g.ClientID); err == nil && c != nil {
+			clientName = c.ClientName
+		}
+		exCount, _ := a.store.CountTokenExchanges(g.UserID, g.ClientID)
+		row := strings.Join([]string{
+			g.UserID, userName, g.ClientID, clientName, "user",
+			g.GrantedAt, g.Status, g.RevokedAt, strconv.Itoa(exCount),
+		}, ",")
+		b.WriteString(row)
+		b.WriteString("\n")
+	}
+	a.audit.Eventf("admin.export.grants", remoteIP(r), "", "", fmt.Sprintf("rows=%d", len(gs)))
+	a.writeCSV(w, "grants.csv", b.String())
+}
+
+// handleAdminStats GET /api/admin/stats（X-Admin-Token）返回进程内计数快照与 Reset 时间。// handleAdminStats GET /api/admin/stats（X-Admin-Token）返回进程内计数快照与 Reset 时间。
 func (a *API) handleAdminStats(w http.ResponseWriter, r *http.Request) {
 	if !a.checkAdmin(w, r) {
 		return

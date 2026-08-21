@@ -672,3 +672,102 @@ body {
 .ns-py-5 { padding: 32px 0; }
 
 .ns-form-text { margin-top: 4px; font-size: 13px; color: var(--ns-muted); }
+
+/* —— 管理后台对齐规范（§2，全站后台应用）—— */
+
+/* 表格：行高 44 / 表头 48、表头 12px #888、斑马纹、容器 overflow-x auto */
+.admin-table {
+  width: 100%;
+  font-size: 13px;
+  overflow-x: auto;
+}
+
+.admin-table .n-data-table {
+  --n-th-height: 48px;
+  --n-td-height: 44px;
+}
+
+.admin-table th,
+.admin-table .n-data-table-th {
+  height: 48px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  background: var(--ns-card-bg);
+}
+
+.admin-table tbody tr,
+.admin-table .n-data-table-tr {
+  height: 44px;
+}
+
+.admin-table tbody tr:nth-child(even) {
+  background: #fbfbfb;
+}
+
+/* 单元格对齐：文本左 / 数字右 / 操作列右固定宽 */
+.tbl-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tbl-act {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.tbl-ellipsis {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 统计卡：auto-fit minmax(200px,1fr) 等宽等高、数值 24px 右对齐 tabular-nums */
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.admin-stat-card {
+  background: var(--ns-card-bg);
+  border: 1px solid var(--ns-border);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 96px;
+}
+
+.admin-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ns-text);
+  line-height: 1.2;
+}
+
+.admin-stat-label {
+  font-size: 13px;
+  color: var(--ns-muted);
+}
+
+/* 按钮组：small、间距 8px、不换行 */
+.admin-btn-group {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+/* 表单 label 上置、12px #555 */
+.admin-form-item .n-form-item-label {
+  font-size: 12px;
+  color: #555;
+}
+
