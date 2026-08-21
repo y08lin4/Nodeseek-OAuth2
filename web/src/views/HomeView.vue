@@ -7,8 +7,6 @@ import { me } from '../api'
 import NSLogo from '../components/NSLogo.vue'
 
 const loggedIn = ref(false)
-// 特性列表
-const features = ['审核制应用', '多系统账号冗余', '授权统计', '等级门槛', '临时 token']
 // 副标题标签
 const heroTags = ['OAuth2 标准', '私信验证码', '多账号冗余']
 
@@ -35,10 +33,10 @@ onMounted(async () => {
         <n-tag v-for="t in heroTags" :key="t" round>{{ t }}</n-tag>
       </div>
       <div class="portal-cta">
-        <n-button v-if="!loggedIn" type="primary" size="large" to="/login">登录 Nodeseek 账号</n-button>
-        <n-button v-else type="primary" size="large" to="/dashboard">进入面板</n-button>
-        <n-button size="large" to="/docs">接入文档</n-button>
-        <n-button size="large" to="/console">申请接入</n-button>
+        <router-link v-if="!loggedIn" to="/login" custom v-slot="{ navigate }"><n-button type="primary" size="large" @click="navigate">登录 Nodeseek 账号</n-button></router-link>
+        <router-link v-else to="/dashboard" custom v-slot="{ navigate }"><n-button type="primary" size="large" @click="navigate">进入面板</n-button></router-link>
+        <router-link to="/docs" custom v-slot="{ navigate }"><n-button size="large" @click="navigate">接入文档</n-button></router-link>
+        <router-link to="/console" custom v-slot="{ navigate }"><n-button size="large" @click="navigate">申请接入</n-button></router-link>
       </div>
       <div class="portal-stats">已接入应用 · 今日授权</div>
     </section>
@@ -96,14 +94,6 @@ onMounted(async () => {
             <p class="ns-mb-0 ns-text-muted ns-small">服务端核验私信后完成</p>
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- 特性列表 -->
-    <section class="portal-section">
-      <h2 class="portal-h2">特性</h2>
-      <div class="feature-list">
-        <n-tag v-for="f in features" :key="f" round>{{ f }}</n-tag>
       </div>
     </section>
   </div>

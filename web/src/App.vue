@@ -53,12 +53,12 @@ watch(() => route.fullPath, refreshMe)
               <RouterLink to="/" class="app-brand"><NSLogo :size="28" /></RouterLink>
               <div class="app-nav-right">
                 <!-- 接入文档：公开可见 -->
-                <n-button text to="/docs">接入文档</n-button>
-                <n-button v-if="!userId" type="primary" size="small" to="/login">登录</n-button>
+                <router-link to="/docs" custom v-slot="{ navigate }"><n-button text @click="navigate">接入文档</n-button></router-link>
+                <router-link v-if="!userId" to="/login" custom v-slot="{ navigate }"><n-button type="primary" size="small" @click="navigate">登录</n-button></router-link>
                 <template v-else>
                   <!-- 面板与我的授权入口：仅登录后显示 -->
-                  <n-button text to="/dashboard">面板</n-button>
-                  <n-button text to="/grants">我的授权</n-button>
+                  <router-link to="/dashboard" custom v-slot="{ navigate }"><n-button text @click="navigate">面板</n-button></router-link>
+                  <router-link to="/grants" custom v-slot="{ navigate }"><n-button text @click="navigate">我的授权</n-button></router-link>
                   <span class="app-user">ID {{ userId }}</span>
                   <n-button size="small" @click="handleLogout">退出登录</n-button>
                 </template>

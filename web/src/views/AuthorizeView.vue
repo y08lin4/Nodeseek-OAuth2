@@ -169,8 +169,8 @@ async function submitDecision(approve: boolean) {
         你的 NodeSeek 账号暂不满足该应用的授权门槛，可提升等级或加入时长后再试。
       </p>
       <div class="ns-flex ns-gap-2 ns-justify-center">
-        <n-button to="/">返回首页</n-button>
-        <n-button type="primary" to="/login">重新登录</n-button>
+        <router-link to="/" custom v-slot="{ navigate }"><n-button @click="navigate">返回首页</n-button></router-link>
+        <router-link to="/login" custom v-slot="{ navigate }"><n-button type="primary" @click="navigate">重新登录</n-button></router-link>
       </div>
     </div>
 

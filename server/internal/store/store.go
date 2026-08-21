@@ -169,21 +169,25 @@ func (s *Store) seed() error {
 		}
 	}
 	// accounts.json 播种 + 旧 settings.json 迁移（详见 migrateLegacyCookie）。
+	// 仅当配置了默认系统账号（NS_AUTH_ACCOUNT_ID）时才播种；未配置则保持空列表，
+	// 由管理员通过 /api/admin/accounts 或推 Cookie 自行添加。
 	ap := filepath.Join(s.dir, "accounts.json")
-	if _, err := os.Stat(ap); errors.Is(err, os.ErrNotExist) {
-		acc := Account{
-			AccountID:    s.defaultAccountID,
-			AccountName:  s.defaultAccountName,
-			Priority:     0,
-			Enabled:      true,
-			AutoDetected: false,
-		}
-		if migrated, ts := s.migrateLegacyCookie(); migrated != "" {
-			acc.CookieEncrypted = migrated
-			acc.UpdatedAt = ts
-		}
-		if err := s.writeJSON("accounts.json", []Account{acc}); err != nil {
-			return err
+	if s.defaultAccountID != "" {
+		if _, err := os.Stat(ap); errors.Is(err, os.ErrNotExist) {
+			acc := Account{
+				AccountID:    s.defaultAccountID,
+				AccountName:  s.defaultAccountName,
+				Priority:     0,
+				Enabled:      true,
+				AutoDetected: false,
+			}
+			if migrated, ts := s.migrateLegacyCookie(); migrated != "" {
+				acc.CookieEncrypted = migrated
+				acc.UpdatedAt = ts
+			}
+			if err := s.writeJSON("accounts.json", []Account{acc}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
