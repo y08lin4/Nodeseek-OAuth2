@@ -86,10 +86,9 @@ body {
 .app-shell main {
   flex: 1;
   width: 100%;
-  max-width: 900px;
   margin: 0 auto;
-  padding-top: 32px;
-  padding-bottom: 48px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .app-footer {
@@ -535,9 +534,11 @@ body {
   line-height: 1.4;
 }
 
-/* 首页区块（hero 下方内容区，如接入文档摘要） */
+/* 首页区块（hero 下方内容区，如接入文档摘要）：内容收敛在 1100px 内居中（hero 全屏不受限） */
 .portal-section {
   padding-top: 8px;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 /* 文档摘要底部入口 */

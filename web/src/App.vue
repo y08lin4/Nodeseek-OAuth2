@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 根组件：全局 Naive UI Provider（zhCN + message + dialog）+ 导航（登录态探测/退出）+ 布局容器 + 页脚
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   NConfigProvider,
@@ -18,6 +18,9 @@ const route = useRoute()
 const router = useRouter()
 const userId = ref('') // 已登录时为 NS 数字 ID，空 = 未登录
 const showFloatLogin = ref(false) // 未登录且滚动超过 320px 时，顶栏浮现登录按钮
+
+// 管理后台路由独立壳：不套首页 nav/main/footer（AdminLayout 自带顶栏+侧栏全屏布局）
+const isAdmin = computed(() => route.path.startsWith('/admin'))
 
 // 探测登录态：GET /api/me（401/网络错误均视为未登录，导航不报错）
 async function refreshMe() {
@@ -62,7 +65,9 @@ watch(() => route.fullPath, refreshMe)
   <n-config-provider :locale="zhCN" :date-locale="dateZhCN" :theme-overrides="themeOverrides">
     <n-message-provider>
       <n-dialog-provider>
-        <div class="app-shell">
+        <!-- 管理后台：独立全屏壳（AdminLayout 自带顶栏/侧栏），不套首页导航与页脚 -->
+        <router-view v-if="isAdmin" />
+        <div v-else class="app-shell">
           <!-- 全局导航 -->
           <nav class="app-nav">
             <div class="app-nav-inner">
