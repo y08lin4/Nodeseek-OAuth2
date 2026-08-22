@@ -6,7 +6,6 @@
 import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  NCard,
   NForm,
   NFormItem,
   NInput,
@@ -16,6 +15,9 @@ import {
   NRadioButton,
   useMessage,
 } from 'naive-ui'
+import { Medal, CalendarDays, Coins, FileText, MessageSquare } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatCard from '../components/ui/StatCard.vue'
 import {
   getConfig,
   verifyUser,
@@ -275,11 +277,8 @@ function backToStep1() {
 </script>
 
 <template>
-  <n-card class="page-card">
-    <template #header>
-      <span class="page-title">登录 Nodeseek 账号</span>
-    </template>
-    <p class="ns-card-sub">私信验证码确认账号归属，全程无需密码</p>
+  <div class="user-page">
+    <PageHeader title="登录 Nodeseek 账号" subtitle="私信验证码确认账号归属，全程无需密码" />
 
     <!-- 步骤指示器 1-2-3 -->
     <div class="steps">
@@ -423,27 +422,12 @@ function backToStep1() {
       </n-alert>
 
       <!-- 用户信息卡片（confirm 响应附带 stats；拉取失败时为 null 则不显示） -->
-      <div v-if="userStats" class="stats-grid ns-mt-3">
-        <div class="stat-item">
-          <div class="stat-value">{{ userStats.rank }}</div>
-          <div class="stat-label">等级</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ userStats.join_days }}</div>
-          <div class="stat-label">加入天数</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ userStats.chicken }}</div>
-          <div class="stat-label">鸡腿</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ userStats.topics }}</div>
-          <div class="stat-label">主题帖</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ userStats.comments }}</div>
-          <div class="stat-label">评论</div>
-        </div>
+      <div v-if="userStats" class="admin-stats ns-mt-3">
+        <StatCard label="等级" :value="userStats.rank" :icon="Medal" variant="neutral" />
+        <StatCard label="加入天数" :value="userStats.join_days" unit="天" :icon="CalendarDays" variant="info" />
+        <StatCard label="鸡腿" :value="userStats.chicken" :icon="Coins" variant="warning" />
+        <StatCard label="主题帖" :value="userStats.topics" unit="篇" :icon="FileText" variant="neutral" />
+        <StatCard label="评论" :value="userStats.comments" unit="条" :icon="MessageSquare" variant="info" />
       </div>
 
       <!-- 授权门槛提示（gate 中值为 0 的项不显示） -->
@@ -454,5 +438,5 @@ function backToStep1() {
         进入服务（{{ redirectTarget }}）
       </n-button>
     </div>
-  </n-card>
+  </div>
 </template>

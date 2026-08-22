@@ -2,8 +2,8 @@
 // 管理后台仪表盘 v3：欢迎行 + 6 统计卡 + 应用排行 Top5 / 近 7 天登录趋势 + 待办 + 最近审计
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NTag, NButton, NSpin, NTable, NEmpty, useMessage } from 'naive-ui'
-import { Blocks, Activity, Cookie } from 'lucide-vue-next'
+import { NCard, NTag, NButton, NSpin, NTable, useMessage } from 'naive-ui'
+import { Blocks, Activity, Cookie, LogIn, CircleCheck, CircleX, ShieldBan, TriangleAlert } from 'lucide-vue-next'
 import {
   getAdminStatus,
   getAdminStats,
@@ -28,6 +28,9 @@ import {
   auditLevel,
   AUDIT_LEVEL_TEXT,
 } from './adminShared'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import StatCard from '../../components/ui/StatCard.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 
 const message = useMessage()
 const router = useRouter()
@@ -109,13 +112,43 @@ const lastLogin = computed(() => {
   return ok ? { ts: ok.ts, ip: ok.ip || '' } : null
 })
 
-// 6 统计卡
+// 6 统计卡：语义色 + 图标 + 数值（StatCard 组件千分位）
 const statCards = computed(() => {
-  const items = statItemLabel().map((s) => ({
-    label: s.label,
-    value: stats.value?.[s.key] ?? 0,
-  }))
-  items.push({ label: '应用总数', value: clients.value.length })
+  const defs: Array<{
+    key: 'verifies' | 'login_ok' | 'login_fail' | 'gate_block' | 'cookie_alert'
+    icon: unknown
+    variant: 'info' | 'success' | 'danger' | 'warning'
+    unit?: string
+  }> = [
+    { key: 'verifies', icon: LogIn, variant: 'info' },
+    { key: 'login_ok', icon: CircleCheck, variant: 'success' },
+    { key: 'login_fail', icon: CircleX, variant: 'danger' },
+    { key: 'gate_block', icon: ShieldBan, variant: 'warning' },
+    { key: 'cookie_alert', icon: TriangleAlert, variant: 'warning' },
+  ]
+  const items: Array<{
+    label: string
+    value: number
+    icon: unknown
+    variant: 'info' | 'success' | 'danger' | 'warning' | 'neutral'
+    unit: string
+  }> = defs.map((d) => {
+    const meta = statItemLabel().find((s) => s.key === d.key)!
+    return {
+      label: meta.label,
+      value: stats.value?.[d.key] ?? 0,
+      icon: d.icon,
+      variant: d.variant,
+      unit: d.unit ?? '',
+    }
+  })
+  items.push({
+    label: '应用总数',
+    value: clients.value.length,
+    icon: Blocks,
+    variant: 'neutral',
+    unit: '个',
+  })
   return items
 })
 
@@ -184,29 +217,30 @@ onMounted(loadAll)
 </script>
 
 <template>
-  <!-- 欢迎行 -->
-  <div class="page-head">
-    <div>
-      <h2 class="page-title">仪表盘</h2>
-      <p class="page-sub">
-        欢迎，admin
-        <template v-if="lastLogin">
-          · 最后登录 {{ formatTime(lastLogin.ts) }}<template v-if="lastLogin.ip">（IP {{ lastLogin.ip }}）</template>
-        </template>
-      </p>
-    </div>
-    <div class="page-actions">
+  <PageHeader
+    title="仪表盘"
+    subtitle="欢迎，admin"
+  >
+    <template #actions>
       <n-button size="small" :loading="loading" @click="loadAll">刷新</n-button>
-    </div>
-  </div>
+    </template>
+  </PageHeader>
+  <p v-if="lastLogin" class="ns-text-muted ns-small ns-mb-3" style="margin-top: -12px">
+    最后登录 {{ formatTime(lastLogin.ts) }}<template v-if="lastLogin.ip">（IP {{ lastLogin.ip }}）</template>
+  </p>
 
   <n-spin :show="loading">
     <!-- 6 统计卡 -->
     <div class="admin-stats ns-mb-4">
-      <div v-for="s in statCards" :key="s.label" class="admin-stat-card">
-        <div class="admin-stat-value">{{ s.value }}</div>
-        <div class="admin-stat-label">{{ s.label }}</div>
-      </div>
+      <StatCard
+        v-for="s in statCards"
+        :key="s.label"
+        :label="s.label"
+        :value="s.value"
+        :unit="s.unit"
+        :icon="s.icon"
+        :variant="s.variant"
+      />
     </div>
 
     <!-- 双区块：应用排行 + 登录趋势 -->
@@ -223,7 +257,7 @@ onMounted(loadAll)
           </div>
           <n-button size="small" text class="ns-mt-2" @click="router.push('/admin/apps')">查看全部应用 →</n-button>
         </template>
-        <n-empty v-else description="暂无应用" size="small" class="ns-py-2" />
+        <EmptyState v-else description="暂无应用" />
       </n-card>
 
       <n-card size="small" class="dash-block" title="近 7 天登录趋势">
@@ -254,7 +288,7 @@ onMounted(loadAll)
             去审核 →
           </n-button>
         </template>
-        <n-empty v-else description="暂无待审核项" size="small" class="ns-py-2" />
+        <EmptyState v-else description="暂无待审核项" />
       </n-card>
 
       <!-- Cookie 状态 -->
@@ -284,7 +318,7 @@ onMounted(loadAll)
           </n-alert>
           <n-button size="small" class="ns-mt-2" @click="router.push('/admin/accounts')">去账号 →</n-button>
         </template>
-        <n-empty v-else description="暂无状态" size="small" class="ns-py-2" />
+        <EmptyState v-else description="暂无状态" />
       </n-card>
     </div>
 

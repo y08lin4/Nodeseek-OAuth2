@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 管理后台 · 设置：邮件配置 + SMTP 运行时配置 + 系统信息
+// 管理后台 · 设置：邮件 + SMTP + 安全（改密）+ 系统信息（Tabs 分区）
 import { onMounted, ref } from 'vue'
 import {
   NCard,
@@ -13,6 +13,8 @@ import {
   NSelect,
   NSwitch,
   NAlert,
+  NTabs,
+  NTabPane,
   useMessage,
 } from 'naive-ui'
 import {
@@ -26,6 +28,7 @@ import {
   type SmtpTlsMode,
 } from '../../api'
 import { formatTime } from './adminShared'
+import PageHeader from '../../components/ui/PageHeader.vue'
 
 const message = useMessage()
 
@@ -174,160 +177,179 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 页头 -->
-  <div class="page-head">
-    <div>
-      <h2 class="page-title">设置</h2>
-      <p class="page-sub">邮件通知与系统信息</p>
-    </div>
-  </div>
+  <PageHeader title="设置" subtitle="邮件通知、安全与系统信息" />
 
-    <n-spin :show="loading">
-      <!-- 邮件配置 -->
-      <h2 class="ns-h6 ns-mb-3">邮件配置</h2>
-      <div v-if="status" class="detail-row">
-        <span class="detail-label">SMTP 配置</span>
-        <span class="detail-value">
-          <n-tag :type="status.mail?.configured ? 'success' : 'warning'" size="small" round>
-            {{ status.mail?.configured ? '已配置' : '未配置' }}
-          </n-tag>
-        </span>
-      </div>
-      <div v-if="status?.mail?.configured" class="detail-row">
-        <span class="detail-label">报告时间</span>
-        <span class="detail-value">{{ status.mail.report_time || '—' }}</span>
-      </div>
-      <div v-if="status?.mail?.last_test_at" class="detail-row">
-        <span class="detail-label">上次测试</span>
-        <span class="detail-value">{{ formatTime(status.mail.last_test_at) }}</span>
-      </div>
-      <div v-if="status" class="detail-row">
-        <span class="detail-label">新应用提交邮件通知</span>
-        <span class="detail-value">
-          <n-tag :type="status.mail?.review_email_notify === true ? 'success' : 'default'" size="small" round>
-            {{ status.mail?.review_email_notify === true ? '已开启' : '未开启' }}
-          </n-tag>
-        </span>
-      </div>
-      <div v-if="status" class="detail-row">
-        <span class="detail-label">发送测试邮件</span>
-        <span class="detail-value">
-          <n-button size="small" :loading="sendingMail" @click="handleTestMail">发送测试邮件</n-button>
-        </span>
-      </div>
+  <n-spin :show="loading">
+    <n-tabs type="line" animated>
+      <!-- 邮件：状态卡 + SMTP 配置卡 -->
+      <n-tab-pane name="mail" tab="邮件">
+        <div class="settings-grid">
+          <n-card title="邮件配置" class="admin-page-card">
+            <div v-if="status" class="detail-row">
+              <span class="detail-label">SMTP 配置</span>
+              <span class="detail-value">
+                <n-tag :type="status.mail?.configured ? 'success' : 'warning'" size="small" round>
+                  {{ status.mail?.configured ? '已配置' : '未配置' }}
+                </n-tag>
+              </span>
+            </div>
+            <div v-if="status?.mail?.configured" class="detail-row">
+              <span class="detail-label">报告时间</span>
+              <span class="detail-value">{{ status.mail.report_time || '—' }}</span>
+            </div>
+            <div v-if="status?.mail?.last_test_at" class="detail-row">
+              <span class="detail-label">上次测试</span>
+              <span class="detail-value">{{ formatTime(status.mail.last_test_at) }}</span>
+            </div>
+            <div v-if="status" class="detail-row">
+              <span class="detail-label">新应用提交邮件通知</span>
+              <span class="detail-value">
+                <n-tag :type="status.mail?.review_email_notify === true ? 'success' : 'default'" size="small" round>
+                  {{ status.mail?.review_email_notify === true ? '已开启' : '未开启' }}
+                </n-tag>
+              </span>
+            </div>
+            <div v-if="status" class="detail-row">
+              <span class="detail-label">测试邮件</span>
+              <span class="detail-value">
+                <n-button size="small" :loading="sendingMail" @click="handleTestMail">发送测试邮件</n-button>
+              </span>
+            </div>
+          </n-card>
 
-      <!-- SMTP 运行时配置 -->
-      <h2 class="ns-h6 ns-mt-4 ns-mb-3">SMTP 配置</h2>
-      <n-form class="admin-smtp-form" label-placement="top" label-width="auto">
-        <n-spin :show="smtpLoading">
-          <div v-if="smtpLoaded" class="smtp-grid">
-            <n-form-item label="服务器" class="admin-form-item">
-              <n-input v-model:value="smtpForm.host" size="small" placeholder="smtp.example.com" />
-            </n-form-item>
-            <n-form-item label="端口" class="admin-form-item">
-              <n-input-number
-                v-model:value="smtpForm.port"
-                size="small"
-                :min="1"
-                :max="65535"
-                placeholder="587"
-                style="width: 100%"
-              />
-            </n-form-item>
-            <n-form-item label="加密方式" class="admin-form-item">
-              <n-select v-model:value="smtpForm.tls" size="small" :options="tlsOptions" />
-            </n-form-item>
-            <n-form-item label="用户名" class="admin-form-item">
-              <n-input v-model:value="smtpForm.user" size="small" placeholder="登录用户名" />
-            </n-form-item>
-            <n-form-item label="密码" class="admin-form-item">
-              <n-input
-                v-model:value="smtpForm.password"
-                size="small"
-                type="password"
-                show-password-on="click"
-                :placeholder="hasPassword ? '不修改请留空（已设置）' : '设置密码'"
-              />
-            </n-form-item>
-            <n-form-item label="启用" class="admin-form-item">
-              <n-switch v-model:value="smtpForm.enabled" size="small" />
-            </n-form-item>
-          </div>
-          <n-alert v-if="smtpLoaded && !smtpForm.host" type="warning" class="ns-mt-2">
-            当前未配置 SMTP（显示环境变量默认值），保存后可持久化到 data/smtp.json 并热更新。
-          </n-alert>
-          <div class="ns-mt-3">
-            <n-button type="primary" size="small" :loading="smtpSaving" @click="handleSaveSmtp">保存</n-button>
-            <span v-if="hasPassword" class="ns-text-muted ns-small ns-mt-1 smtp-pass-hint">
-              密码已设置，留空保存将保留旧密码。
-            </span>
-          </div>
-        </n-spin>
-      </n-form>
+          <n-card title="SMTP 配置" class="admin-page-card">
+            <n-form class="admin-smtp-form" label-placement="top" label-width="auto">
+              <n-spin :show="smtpLoading">
+                <div v-if="smtpLoaded" class="smtp-grid">
+                  <n-form-item label="服务器" class="admin-form-item">
+                    <n-input v-model:value="smtpForm.host" size="small" placeholder="smtp.example.com" />
+                  </n-form-item>
+                  <n-form-item label="端口" class="admin-form-item">
+                    <n-input-number
+                      v-model:value="smtpForm.port"
+                      size="small"
+                      :min="1"
+                      :max="65535"
+                      placeholder="587"
+                      style="width: 100%"
+                    />
+                  </n-form-item>
+                  <n-form-item label="加密方式" class="admin-form-item">
+                    <n-select v-model:value="smtpForm.tls" size="small" :options="tlsOptions" />
+                  </n-form-item>
+                  <n-form-item label="用户名" class="admin-form-item">
+                    <n-input v-model:value="smtpForm.user" size="small" placeholder="登录用户名" />
+                  </n-form-item>
+                  <n-form-item label="密码" class="admin-form-item">
+                    <n-input
+                      v-model:value="smtpForm.password"
+                      size="small"
+                      type="password"
+                      show-password-on="click"
+                      :placeholder="hasPassword ? '不修改请留空（已设置）' : '设置密码'"
+                    />
+                  </n-form-item>
+                  <n-form-item label="启用" class="admin-form-item">
+                    <n-switch v-model:value="smtpForm.enabled" size="small" />
+                  </n-form-item>
+                </div>
+                <n-alert v-if="smtpLoaded && !smtpForm.host" type="warning" class="ns-mt-2">
+                  当前未配置 SMTP（显示环境变量默认值），保存后可持久化到 data/smtp.json 并热更新。
+                </n-alert>
+                <div class="ns-mt-3">
+                  <n-button type="primary" size="small" :loading="smtpSaving" @click="handleSaveSmtp">保存</n-button>
+                  <span v-if="hasPassword" class="ns-text-muted ns-small ns-mt-1 smtp-pass-hint">
+                    密码已设置，留空保存将保留旧密码。
+                  </span>
+                </div>
+              </n-spin>
+            </n-form>
+          </n-card>
+        </div>
+      </n-tab-pane>
 
       <!-- 安全：修改密码 -->
-      <n-card class="admin-page-card ns-mt-4" title="安全">
-        <h2 class="ns-h6 ns-mb-3">修改密码</h2>
-        <n-form class="admin-smtp-form" label-placement="top" label-width="auto">
-          <n-form-item label="旧密码" class="admin-form-item">
-            <n-input
-              v-model:value="pwForm.old"
-              type="password"
-              show-password-on="click"
-              placeholder="当前登录密码"
-              :input-props="{ autocomplete: 'current-password' }"
-            />
-          </n-form-item>
-          <n-form-item label="新密码" class="admin-form-item">
-            <n-input
-              v-model:value="pwForm.next"
-              type="password"
-              show-password-on="click"
-              placeholder="至少 8 位"
-              :input-props="{ autocomplete: 'new-password' }"
-            />
-          </n-form-item>
-          <n-form-item label="确认新密码" class="admin-form-item">
-            <n-input
-              v-model:value="pwForm.confirm"
-              type="password"
-              show-password-on="click"
-              placeholder="再次输入新密码"
-              :input-props="{ autocomplete: 'new-password' }"
-            />
-          </n-form-item>
-          <div class="ns-mt-3">
-            <n-button type="primary" size="small" :loading="pwSaving" @click="handleChangePassword">
-              修改密码
-            </n-button>
-          </div>
-        </n-form>
-      </n-card>
+      <n-tab-pane name="security" tab="安全">
+        <n-card title="修改密码" class="admin-page-card settings-narrow">
+          <p class="ns-text-muted ns-small ns-mb-3">新密码下次登录生效。</p>
+          <n-form class="admin-smtp-form" label-placement="top" label-width="auto">
+            <n-form-item label="旧密码" class="admin-form-item">
+              <n-input
+                v-model:value="pwForm.old"
+                type="password"
+                show-password-on="click"
+                placeholder="当前登录密码"
+                :input-props="{ autocomplete: 'current-password' }"
+              />
+            </n-form-item>
+            <n-form-item label="新密码" class="admin-form-item">
+              <n-input
+                v-model:value="pwForm.next"
+                type="password"
+                show-password-on="click"
+                placeholder="至少 8 位"
+                :input-props="{ autocomplete: 'new-password' }"
+              />
+            </n-form-item>
+            <n-form-item label="确认新密码" class="admin-form-item">
+              <n-input
+                v-model:value="pwForm.confirm"
+                type="password"
+                show-password-on="click"
+                placeholder="再次输入新密码"
+                :input-props="{ autocomplete: 'new-password' }"
+              />
+            </n-form-item>
+            <div class="ns-mt-3">
+              <n-button type="primary" size="small" :loading="pwSaving" @click="handleChangePassword">
+                修改密码
+              </n-button>
+            </div>
+          </n-form>
+        </n-card>
+      </n-tab-pane>
 
-      <!-- 系统信息 -->
-      <h2 class="ns-h6 ns-mt-4 ns-mb-3">系统信息</h2>
-      <div v-if="status" class="detail-row">
-        <span class="detail-label">Mock 模式</span>
-        <span class="detail-value">
-          <n-tag :type="status.mock_mode ? 'warning' : 'success'" size="small" round>
-            {{ status.mock_mode ? '开启（跳过真实私信核验）' : '关闭' }}
-          </n-tag>
-        </span>
-      </div>
-      <div v-if="status?.cookie?.set !== undefined" class="detail-row">
-        <span class="detail-label">Cookie 状态</span>
-        <span class="detail-value">
-          <n-tag :type="status.cookie.set ? 'success' : 'warning'" size="small" round>
-            {{ status.cookie.set ? '已设置' : '未设置' }}
-          </n-tag>
-        </span>
-      </div>
-    </n-spin>
+      <!-- 系统 -->
+      <n-tab-pane name="system" tab="系统">
+        <n-card title="系统信息" class="admin-page-card settings-narrow">
+          <div v-if="status" class="detail-row">
+            <span class="detail-label">Mock 模式</span>
+            <span class="detail-value">
+              <n-tag :type="status.mock_mode ? 'warning' : 'success'" size="small" round>
+                {{ status.mock_mode ? '开启（跳过真实私信核验）' : '关闭' }}
+              </n-tag>
+            </span>
+          </div>
+          <div v-if="status?.cookie?.set !== undefined" class="detail-row">
+            <span class="detail-label">Cookie 状态</span>
+            <span class="detail-value">
+              <n-tag :type="status.cookie.set ? 'success' : 'warning'" size="small" round>
+                {{ status.cookie.set ? '已设置' : '未设置' }}
+              </n-tag>
+            </span>
+          </div>
+        </n-card>
+      </n-tab-pane>
+    </n-tabs>
+  </n-spin>
 </template>
 
 <style scoped>
 .admin-page-card {
   border-radius: 6px;
+}
+
+/* Tabs 内卡片：grid 2 列 minmax(320px,1fr) */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.settings-narrow {
+  max-width: 640px;
+  margin-top: 4px;
 }
 
 .admin-smtp-form {

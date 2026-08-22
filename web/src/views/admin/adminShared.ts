@@ -67,6 +67,12 @@ export function ageText(seconds: number): string {
   return `${Math.floor(s / 86400)} 天前`
 }
 
+// 数值千分位格式化（配合 tabular-nums）
+export function formatNum(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return '—'
+  return n.toLocaleString('zh-CN')
+}
+
 // —— 审计日志：事件汉化映射 + 级别分类 ——
 
 /** 审计事件 → 中文名（覆盖后端全部事件；未命中回退原文） */

@@ -7,9 +7,12 @@
 // 同意/拒绝 → POST /oauth/authorize/decision。
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { NCard, NAlert, NTag, NButton, NSpin } from 'naive-ui'
+import { NAlert, NTag, NButton, NSpin } from 'naive-ui'
 import { getClient, ApiError, type ClientInfo } from '../api'
-import { ShieldBan } from 'lucide-vue-next'
+import { ShieldBan, Medal, CalendarDays, Coins, FileText, MessageSquare } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatCard from '../components/ui/StatCard.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
 const route = useRoute()
 
@@ -153,11 +156,8 @@ async function submitDecision(approve: boolean) {
 </script>
 
 <template>
-  <n-card class="page-card">
-    <template #header>
-      <span class="page-title">授权确认</span>
-    </template>
-    <p class="ns-card-sub">第三方应用请求使用你的 Nodeseek 账号登录</p>
+  <div class="user-page">
+    <PageHeader title="授权确认" subtitle="第三方应用请求使用你的 Nodeseek 账号登录" />
 
     <n-alert v-if="error" type="error" :show-icon="true" class="ns-mb-3">{{ error }}</n-alert>
 
@@ -219,27 +219,12 @@ async function submitDecision(approve: boolean) {
           </div>
 
           <!-- 当前用户 stats -->
-          <div v-if="info.stats" class="stats-grid ns-mt-3">
-            <div class="stat-item">
-              <div class="stat-value">{{ info.stats.rank }}</div>
-              <div class="stat-label">等级</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value">{{ info.stats.join_days }}</div>
-              <div class="stat-label">加入天数</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value">{{ info.stats.chicken }}</div>
-              <div class="stat-label">鸡腿</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value">{{ info.stats.topics }}</div>
-              <div class="stat-label">主题帖</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value">{{ info.stats.comments }}</div>
-              <div class="stat-label">评论</div>
-            </div>
+          <div v-if="info.stats" class="admin-stats ns-mt-3">
+            <StatCard label="等级" :value="info.stats.rank" :icon="Medal" variant="neutral" />
+            <StatCard label="加入天数" :value="info.stats.join_days" unit="天" :icon="CalendarDays" variant="info" />
+            <StatCard label="鸡腿" :value="info.stats.chicken" :icon="Coins" variant="warning" />
+            <StatCard label="主题帖" :value="info.stats.topics" unit="篇" :icon="FileText" variant="neutral" />
+            <StatCard label="评论" :value="info.stats.comments" unit="条" :icon="MessageSquare" variant="info" />
           </div>
 
           <div class="detail-row">
@@ -282,12 +267,11 @@ async function submitDecision(approve: boolean) {
           </div>
         </div>
 
-        <n-empty
+        <EmptyState
           v-if="!loading && !info && !error"
           description="未找到该应用信息"
-          class="ns-py-4"
         />
       </n-spin>
     </template>
-  </n-card>
+  </div>
 </template>

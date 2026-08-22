@@ -1,7 +1,9 @@
 <script setup lang="ts">
 // 管理后台 · 审计日志：limit + 刷新 + 过滤（事件类型 / 级别 / 用户 ID，前端过滤）+ 汉化分层
 import { computed, onMounted, ref } from 'vue'
-import { NButton, NInputNumber, NInput, NSelect, NSpin, NTable, NEmpty, NTag, useMessage } from 'naive-ui'
+import { NButton, NInputNumber, NInput, NSelect, NSpin, NTable, NTag, useMessage } from 'naive-ui'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import { listAudit, ApiError, type AuditEvent } from '../../api'
 import {
   formatTime,
@@ -82,15 +84,11 @@ onMounted(loadAudit)
 
 <template>
   <!-- 页头 -->
-  <div class="page-head">
-    <div>
-      <h2 class="page-title">审计日志</h2>
-      <p class="page-sub">系统操作审计：登录 / 授权 / 管理动作</p>
-    </div>
-    <div class="page-actions">
+  <PageHeader title="审计日志" subtitle="系统操作审计：登录 / 授权 / 管理动作">
+    <template #actions>
       <n-button size="small" :loading="auditLoading" @click="loadAudit">刷新</n-button>
-    </div>
-  </div>
+    </template>
+  </PageHeader>
 
     <div class="ns-flex ns-align-center ns-gap-2 ns-mb-3 ns-flex-wrap">
       <n-input-number
@@ -123,7 +121,7 @@ onMounted(loadAudit)
     </div>
 
     <n-spin :show="auditLoading">
-      <n-empty v-if="!auditLoading && filtered.length === 0" description="暂无审计事件" size="small" class="ns-py-3" />
+      <EmptyState v-if="!auditLoading && filtered.length === 0" description="暂无审计事件" />
       <n-table v-else :bordered="true" size="small" class="docs-table">
         <thead>
           <tr>

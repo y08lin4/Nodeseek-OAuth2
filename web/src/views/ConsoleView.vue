@@ -14,7 +14,6 @@ import {
   NButton,
   NTag,
   NAlert,
-  NEmpty,
   NSpin,
   useMessage,
   useDialog,
@@ -32,6 +31,9 @@ import {
   type ClientListItem,
   type ClientStatus,
 } from '../api'
+import PageHeader from '../components/ui/PageHeader.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import MetricPair from '../components/ui/MetricPair.vue'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -268,11 +270,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <n-card class="page-card">
-    <template #header>
-      <span class="page-title">应用管理</span>
-    </template>
-    <p class="ns-card-sub">注册并管理接入 Nodeseek OAuth2 的第三方应用</p>
+  <div class="user-page">
+    <PageHeader title="应用管理" subtitle="注册并管理接入 Nodeseek OAuth2 的第三方应用" />
 
     <!-- 创建门槛提示 -->
     <n-alert v-if="creationGateText" type="info" class="ns-mb-3">{{ creationGateText }}</n-alert>
@@ -355,10 +354,7 @@ onMounted(async () => {
     <!-- 我的应用列表 -->
     <h2 class="ns-h6 ns-mt-5 ns-mb-3">我的应用</h2>
     <n-spin :show="loading">
-      <n-empty
-        v-if="!loading && clients.length === 0"
-        description="还没有应用，先创建一个吧。"
-      />
+      <EmptyState v-if="!loading && clients.length === 0" description="还没有应用，先创建一个吧。" />
       <div v-else class="review-list">
         <n-card
           v-for="c in clients"
@@ -398,14 +394,14 @@ onMounted(async () => {
           </div>
           <div class="detail-row">
             <span class="detail-label">token 有效期</span>
-            <span class="detail-value">{{ c.token_ttl / 60 }} 分钟</span>
+            <span class="detail-value">{{ c.token_ttl / 60 }}<span class="stat-unit"> 分钟</span></span>
           </div>
           <!-- 授权统计行（今日/累计成功失败） -->
           <div class="detail-row">
             <span class="detail-label">授权统计</span>
             <span class="detail-value">
-              今日 成功 {{ c.stats.auth_ok_today }} · 失败 {{ c.stats.auth_fail_today }}
-              ｜ 累计 成功 {{ c.stats.auth_ok_total }} · 失败 {{ c.stats.auth_fail_total }}
+              今日 <MetricPair :ok="c.stats.auth_ok_today" :fail="c.stats.auth_fail_today" />
+              ｜ 累计 <MetricPair :ok="c.stats.auth_ok_total" :fail="c.stats.auth_fail_total" />
             </span>
           </div>
           <!-- 审核制操作按钮：仅 approved / paused 状态可申请 -->
@@ -443,5 +439,5 @@ onMounted(async () => {
         </n-card>
       </div>
     </n-spin>
-  </n-card>
+  </div>
 </template>

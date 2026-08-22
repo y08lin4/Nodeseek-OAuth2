@@ -6,9 +6,12 @@
 // - 我的应用统计摘要：GET /api/client/list 前 3 个应用「应用名 · 今日成功 X」
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NEmpty, NSpin, useMessage } from 'naive-ui'
+import { NCard, NSpin, useMessage } from 'naive-ui'
 import { me, listClients, ApiError, type ClientListItem, type UserStats } from '../api'
-import { Blocks, KeyRound, BookOpen } from 'lucide-vue-next'
+import { Blocks, KeyRound, BookOpen, Medal, CalendarDays, Coins, FileText, MessageSquare } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatCard from '../components/ui/StatCard.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
 const STATS_KEY = 'ns_user_stats' // 与 LoginView 缓存 key 一致
 const router = useRouter()
@@ -70,41 +73,19 @@ onMounted(async () => {
 </script>
 
 <template>
-  <n-card class="page-card">
-    <template #header>
-      <span class="page-title">欢迎回来，ID {{ userId || '—' }}</span>
-    </template>
+  <div class="user-page">
+    <PageHeader title="欢迎回来，ID {{ userId || '—' }}" subtitle="登录后面板" />
 
     <!-- 用户 stats 卡片（登录流程缓存；无缓存显示占位） -->
-    <h2 class="ns-h6 ns-mt-2 ns-mb-3">我的信息</h2>
-    <div v-if="userStats" class="stats-grid">
-      <div class="stat-item">
-        <div class="stat-value">{{ userStats.rank }}</div>
-        <div class="stat-label">等级</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value">{{ userStats.join_days }}</div>
-        <div class="stat-label">加入天数</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value">{{ userStats.chicken }}</div>
-        <div class="stat-label">鸡腿</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value">{{ userStats.topics }}</div>
-        <div class="stat-label">主题帖</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value">{{ userStats.comments }}</div>
-        <div class="stat-label">评论</div>
-      </div>
+    <h2 class="ns-h6 ns-mb-3">我的信息</h2>
+    <div v-if="userStats" class="admin-stats">
+      <StatCard label="等级" :value="userStats.rank" :icon="Medal" variant="neutral" />
+      <StatCard label="加入天数" :value="userStats.join_days" unit="天" :icon="CalendarDays" variant="info" />
+      <StatCard label="鸡腿" :value="userStats.chicken" :icon="Coins" variant="warning" />
+      <StatCard label="主题帖" :value="userStats.topics" unit="篇" :icon="FileText" variant="neutral" />
+      <StatCard label="评论" :value="userStats.comments" unit="条" :icon="MessageSquare" variant="info" />
     </div>
-    <n-empty
-      v-else
-      size="small"
-      description="登录后更新（重新登录完成后即可查看等级/加入天数/鸡腿等）"
-      class="ns-py-3"
-    />
+    <EmptyState v-else size="small" description="登录后更新（重新登录完成后即可查看等级/加入天数/鸡腿等）" />
 
     <!-- 快捷入口 -->
     <h2 class="ns-h6 ns-mt-4 ns-mb-3">快捷入口</h2>
@@ -129,19 +110,16 @@ onMounted(async () => {
     <!-- 我的应用统计摘要 -->
     <h2 class="ns-h6 ns-mt-4 ns-mb-3">我的应用统计</h2>
     <n-spin :show="loading">
-      <n-empty
-        v-if="!loading && topClients.length === 0"
-        description="还没有应用，去「申请接入」创建一个吧。"
-      />
+      <EmptyState v-if="!loading && topClients.length === 0" description="还没有应用，去「申请接入」创建一个吧。" />
       <div v-else class="review-list">
         <n-card v-for="c in topClients" :key="c.client_id" size="small" class="review-item">
           <div class="ns-flex ns-justify-between ns-align-center">
             <span class="review-name">{{ c.client_name }}</span>
             <code class="review-client-id">{{ c.client_id }}</code>
           </div>
-          <div class="ns-text-muted ns-small">{{ c.client_name }} · 今日成功 {{ c.stats.auth_ok_today }}</div>
+          <div class="ns-text-muted ns-small">{{ c.client_name }} · 今日成功 <span class="num-ok">{{ c.stats.auth_ok_today }}</span></div>
         </n-card>
       </div>
     </n-spin>
-  </n-card>
+  </div>
 </template>

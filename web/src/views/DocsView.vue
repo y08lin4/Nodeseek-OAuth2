@@ -3,18 +3,16 @@
 // ① 注册应用 ② 构造授权 URL ③ 用户授权 ④ callback 收 code + 校验 state
 // ⑤ POST /oauth/token 换 access_token ⑥ GET /oauth/userinfo 取用户信息 ⑦ 应用自签会话
 // 含 curl 与 Node/JS 示例、端点一览表、.well-known 自动发现提示
-import { NCard, NAlert, NTable } from 'naive-ui'
+import { NAlert, NTable } from 'naive-ui'
+import PageHeader from '../components/ui/PageHeader.vue'
 </script>
 
 <template>
-  <n-card class="page-card">
-    <template #header>
-      <span class="page-title">接入文档</span>
-    </template>
-    <p class="ns-card-sub">标准 OAuth2 授权码流程，接入约需 10 分钟</p>
+  <div class="user-page">
+    <PageHeader title="接入文档" subtitle="标准 OAuth2 授权码流程，接入约需 10 分钟" />
 
     <n-alert type="info" :show-icon="true" class="ns-mb-3">
-      💡 本服务发布 RFC 8414 元数据，第三方可通过
+      本服务发布 RFC 8414 元数据，第三方可通过
       <code>/.well-known/oauth-authorization-server</code> 自动发现端点，免手写配置。
     </n-alert>
 
@@ -96,7 +94,7 @@ const user = await fetch('https://auth.example.com/oauth/userinfo', {
 console.log(user.user_id, user.sub, user.stats)</code></pre>
 
     <n-alert type="warning" :show-icon="true" class="ns-mt-2 ns-mb-3">
-      ⚠️ <code>state</code> 校验提示：回调时请比对 <code>state</code> 与发起授权时的一致，
+      <code>state</code> 校验提示：回调时请比对 <code>state</code> 与发起授权时的一致，
       不一致视为 CSRF 攻击，直接拒绝。
     </n-alert>
 
@@ -123,5 +121,5 @@ console.log(user.user_id, user.sub, user.stats)</code></pre>
         <tr><td><code>/api/config</code></td><td>GET</td><td>前端全局配置（公开）</td></tr>
       </tbody>
     </n-table>
-  </n-card>
+  </div>
 </template>

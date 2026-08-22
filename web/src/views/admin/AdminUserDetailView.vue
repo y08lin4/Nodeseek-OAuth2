@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // 管理后台 · 用户详情（/admin/users/:id）：实时 NS stats + 今日/累计统计 + 授权记录 + 拉黑
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NCard, NButton, NTag, NSpin, NTable, useMessage, useDialog } from 'naive-ui'
-import { ExternalLink, Ban, ShieldOff, ArrowLeft } from 'lucide-vue-next'
+import { ExternalLink, Ban, ShieldOff, ArrowLeft, CircleCheck, CircleX } from 'lucide-vue-next'
 import {
   getAdminUserDetail,
   getAdminUserStats,
@@ -14,7 +14,9 @@ import {
   type AdminUserStats,
   type AdminGrant,
 } from '../../api'
-import { formatTime } from './adminShared'
+import { formatTime, formatNum } from './adminShared'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,21 +90,42 @@ function handleBlacklist() {
   })
 }
 
+// 用户统计卡：成功/失败 语义色 + 图标
+const statCells = computed(() => {
+  const s = stats.value
+  const mk = (label: string, sub: 'today' | 'total', key: 'login_ok' | 'login_fail' | 'auth_ok' | 'auth_fail') => ({
+    label,
+    value: formatNum(s ? s[sub][key] : null),
+    icon: key.endsWith('_ok') ? CircleCheck : CircleX,
+    sem: key.endsWith('_ok') ? 'var(--ns-success)' : 'var(--ns-danger)',
+  })
+  return [
+    mk('今日登录成功', 'today', 'login_ok'),
+    mk('今日登录失败', 'today', 'login_fail'),
+    mk('今日授权成功', 'today', 'auth_ok'),
+    mk('今日授权失败', 'today', 'auth_fail'),
+    mk('累计登录成功', 'total', 'login_ok'),
+    mk('累计登录失败', 'total', 'login_fail'),
+    mk('累计授权成功', 'total', 'auth_ok'),
+    mk('累计授权失败', 'total', 'auth_fail'),
+  ]
+})
+
 onMounted(loadAll)
 </script>
 
 <template>
   <div>
     <!-- 页头 -->
-    <div class="page-head">
-      <h2 class="page-title">用户详情<template v-if="detail">：{{ detail.nickname }}</template></h2>
-      <div class="page-actions">
+    <PageHeader title="用户详情" subtitle="用户详情与授权记录">
+      <template #actions>
         <n-button size="small" @click="router.push('/admin/users')">
           <template #icon><ArrowLeft :size="14" /></template>
           返回用户列表
         </n-button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
+    <p v-if="detail" class="ns-text-muted ns-small ns-mb-3">{{ detail.nickname }}</p>
 
     <n-spin :show="loading">
       <!-- 头部卡 -->
@@ -139,39 +162,14 @@ onMounted(loadAll)
       <!-- 统计卡：今日 / 累计 登录与授权 -->
       <n-card class="admin-page-card ns-mb-4" title="登录与授权统计">
         <div class="admin-stats">
-          <div class="admin-stat-card">
-            <div class="admin-stat-value">{{ stats?.today.login_ok ?? '—' }}</div>
-            <div class="admin-stat-label">今日登录成功</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="admin-stat-value">{{ stats?.today.login_fail ?? '—' }}</div>
-            <div class="admin-stat-label">今日登录失败</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="admin-stat-value">{{ stats?.today.auth_ok ?? '—' }}</div>
-            <div class="admin-stat-label">今日授权成功</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="admin-stat-value">{{ stats?.today.auth_fail ?? '—' }}</div>
-            <div class="admin-stat-label">今日授权失败</div>
-          </div>
-        </div>
-        <div class="admin-stats ns-mt-3">
-          <div class="admin-stat-card">
-            <div class="admin-stat-value">{{ stats?.total.login_ok ?? '—' }}</div>
-            <div class="admin-stat-label">累计登录成功</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="admin-stat-value">{{ stats?.total.login_fail ?? '—' }}</div>
-            <div class="admin-stat-label">累计登录失败</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="admin-stat-value">{{ stats?.total.auth_ok ?? '—' }}</div>
-            <div class="admin-stat-label">累计授权成功</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="admin-stat-value">{{ stats?.total.auth_fail ?? '—' }}</div>
-            <div class="admin-stat-label">累计授权失败</div>
+          <div v-for="sc in statCells" :key="sc.label" class="stat-card">
+            <div class="stat-icon" :style="{ '--sem': sc.sem }">
+              <component :is="sc.icon" :size="20" />
+            </div>
+            <div class="stat-meta">
+              <div class="stat-label">{{ sc.label }}</div>
+              <div class="stat-value">{{ sc.value }}<span class="stat-unit">次</span></div>
+            </div>
           </div>
         </div>
       </n-card>
@@ -201,12 +199,12 @@ onMounted(loadAll)
                   </n-tag>
                 </td>
                 <td>{{ g.revoked_at ? formatTime(g.revoked_at) : '—' }}</td>
-                <td class="tbl-num">{{ g.token_count ?? '—' }}</td>
+                <td class="tbl-num">{{ formatNum(g.token_count) }}</td>
               </tr>
             </tbody>
           </NTable>
         </div>
-        <n-empty v-if="!loading && grants.length === 0" description="该用户暂无授权记录" size="small" class="ns-py-3" />
+        <EmptyState v-if="!loading && grants.length === 0" description="该用户暂无授权记录" />
       </n-card>
     </n-spin>
   </div>

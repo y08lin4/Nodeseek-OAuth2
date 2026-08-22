@@ -5,7 +5,6 @@ import {
   NButton,
   NTag,
   NSpin,
-  NEmpty,
   NTable,
   NModal,
   NAlert,
@@ -23,6 +22,8 @@ import {
   type ClientStatus,
 } from '../../api'
 import { clientStatusText, clientStatusClass, ttlToMinutes } from './adminShared'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -150,18 +151,14 @@ onMounted(loadClients)
 
 <template>
   <!-- 页头 -->
-  <div class="page-head">
-    <div>
-      <h2 class="page-title">应用管理</h2>
-      <p class="page-sub">全部第三方应用：状态 / token 有效期 / 授权统计 / 密钥管理</p>
-    </div>
-    <div class="page-actions">
+  <PageHeader title="应用管理" subtitle="全部第三方应用：状态 / token 有效期 / 授权统计 / 密钥管理">
+    <template #actions>
       <n-button size="small" :loading="clientsLoading" @click="loadClients">刷新</n-button>
-    </div>
-  </div>
+    </template>
+  </PageHeader>
 
     <n-spin :show="clientsLoading">
-      <n-empty v-if="!clientsLoading && clients.length === 0" description="暂无应用" size="small" class="ns-py-3" />
+      <EmptyState v-if="!clientsLoading && clients.length === 0" description="暂无应用" />
       <div v-else class="admin-table">
         <NTable :bordered="true" size="small">
           <thead>
@@ -206,12 +203,16 @@ onMounted(loadClients)
                 </n-tag>
               </td>
               <td class="tbl-num">{{ c.min_rank > 0 ? `≥ ${c.min_rank}` : '不限' }}</td>
-              <td class="tbl-num">{{ ttlToMinutes(c.token_ttl) }} 分钟</td>
-              <td class="tbl-num" :title="`成功 ${c.stats.auth_ok_today} / 失败 ${c.stats.auth_fail_today}`">
-                {{ c.stats.auth_ok_today }} / {{ c.stats.auth_fail_today }}
+              <td class="tbl-num">{{ ttlToMinutes(c.token_ttl) }}<span class="stat-unit"> 分钟</span></td>
+              <td class="tbl-num" :title="`授权成功 ${c.stats.auth_ok_today} / 失败 ${c.stats.auth_fail_today}`">
+                <span class="num-ok">{{ c.stats.auth_ok_today }}</span>
+                <span class="sep"> / </span>
+                <span class="num-fail">{{ c.stats.auth_fail_today }}</span>
               </td>
-              <td class="tbl-num" :title="`成功 ${c.stats.auth_ok_total} / 失败 ${c.stats.auth_fail_total}`">
-                {{ c.stats.auth_ok_total }} / {{ c.stats.auth_fail_total }}
+              <td class="tbl-num" :title="`授权成功 ${c.stats.auth_ok_total} / 失败 ${c.stats.auth_fail_total}`">
+                <span class="num-ok">{{ c.stats.auth_ok_total }}</span>
+                <span class="sep"> / </span>
+                <span class="num-fail">{{ c.stats.auth_fail_total }}</span>
               </td>
               <td class="tbl-act">
                 <div class="admin-btn-group app-actions">
@@ -311,13 +312,13 @@ onMounted(loadClients)
         </div>
         <div class="detail-row">
           <span class="detail-label">token 时长</span>
-          <span class="detail-value">{{ ttlToMinutes(detailClient.token_ttl) }} 分钟</span>
+          <span class="detail-value">{{ ttlToMinutes(detailClient.token_ttl) }}<span class="stat-unit"> 分钟</span></span>
         </div>
         <div class="detail-row">
           <span class="detail-label">授权统计</span>
-          <span class="detail-value">
-            今日 成功 {{ detailClient.stats.auth_ok_today }} / 失败 {{ detailClient.stats.auth_fail_today }}
-            ｜ 累计 成功 {{ detailClient.stats.auth_ok_total }} / 失败 {{ detailClient.stats.auth_fail_total }}
+          <span class="detail-value stats-line" :title="`授权成功/失败`">
+            今日 <span class="num-ok">{{ detailClient.stats.auth_ok_today }}</span> / <span class="num-fail">{{ detailClient.stats.auth_fail_today }}</span>
+            ｜ 累计 <span class="num-ok">{{ detailClient.stats.auth_ok_total }}</span> / <span class="num-fail">{{ detailClient.stats.auth_fail_total }}</span>
           </span>
         </div>
       </div>

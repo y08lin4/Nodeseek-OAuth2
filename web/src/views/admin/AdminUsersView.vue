@@ -2,8 +2,8 @@
 // 管理后台 · 用户：列表 / 搜索（ID/昵称前端过滤）/ 拉黑解禁 / 社区主页 / CSV 导出
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NTag, NInput, NSpin, NEmpty, NTable, useMessage, useDialog } from 'naive-ui'
-import { ExternalLink, Ban, ShieldOff, Download, Search } from 'lucide-vue-next'
+import { NButton, NTag, NInput, NSpin, NTable, useMessage, useDialog } from 'naive-ui'
+import { ExternalLink, Ban, ShieldOff, Download, Search, UserRound, Activity, LogIn } from 'lucide-vue-next'
 import {
   listAdminUsers,
   patchAdminUser,
@@ -11,6 +11,9 @@ import {
   ApiError,
   type AdminUser,
 } from '../../api'
+import { formatNum } from './adminShared'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -86,32 +89,40 @@ onMounted(loadUsers)
 
 <template>
   <!-- 页头 -->
-  <div class="page-head">
-    <h2 class="page-title">用户管理</h2>
-    <div class="page-actions">
+  <PageHeader title="用户管理">
+    <template #actions>
       <n-button size="small" :loading="loading" @click="loadUsers">刷新</n-button>
       <n-button size="small" @click="exportCsv">
         <template #icon><Download :size="14" /></template>
         导出 CSV
       </n-button>
-    </div>
-  </div>
+    </template>
+  </PageHeader>
 
   <!-- 摘要卡 -->
   <div class="admin-stats ns-mb-4">
-      <div class="admin-stat-card">
-        <div class="admin-stat-value">{{ summary.total }}</div>
-        <div class="admin-stat-label">总用户</div>
-      </div>
-      <div class="admin-stat-card">
-        <div class="admin-stat-value">{{ summary.active }}</div>
-        <div class="admin-stat-label">今日活跃</div>
-      </div>
-      <div class="admin-stat-card">
-        <div class="admin-stat-value">{{ summary.login }}</div>
-        <div class="admin-stat-label">今日登录</div>
+    <div class="stat-card">
+      <div class="stat-icon" style="--sem: var(--ns-info)"><UserRound :size="20" /></div>
+      <div class="stat-meta">
+        <div class="stat-label">总用户</div>
+        <div class="stat-value">{{ formatNum(summary.total) }}<span class="stat-unit">人</span></div>
       </div>
     </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="--sem: var(--ns-success)"><Activity :size="20" /></div>
+      <div class="stat-meta">
+        <div class="stat-label">今日活跃</div>
+        <div class="stat-value">{{ formatNum(summary.active) }}<span class="stat-unit">人</span></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="--sem: var(--ns-info)"><LogIn :size="20" /></div>
+      <div class="stat-meta">
+        <div class="stat-label">今日登录</div>
+        <div class="stat-value">{{ formatNum(summary.login) }}<span class="stat-unit">次</span></div>
+      </div>
+    </div>
+  </div>
 
     <!-- 搜索 -->
     <div class="ns-mb-3 admin-filter-bar">
@@ -142,8 +153,8 @@ onMounted(loadUsers)
               <td class="tbl-ellipsis" :title="u.nickname">{{ u.nickname || '—' }}</td>
               <td class="tbl-num">{{ u.rank ?? '—' }}</td>
               <td class="tbl-num">{{ u.signup_days ?? '—' }}</td>
-              <td class="tbl-num">{{ u.login_count ?? '—' }}</td>
-              <td class="tbl-num">{{ u.grant_count ?? '—' }}</td>
+              <td class="tbl-num">{{ formatNum(u.login_count) }}</td>
+              <td class="tbl-num">{{ formatNum(u.grant_count) }}</td>
               <td>
                 <n-tag v-if="u.blacklisted" type="error" size="small" round>已拉黑</n-tag>
                 <n-tag v-else type="success" size="small" round>正常</n-tag>
@@ -171,7 +182,7 @@ onMounted(loadUsers)
         </NTable>
       </div>
     </n-spin>
-    <n-empty v-if="!loading && filtered.length === 0" description="无匹配用户" size="small" class="ns-py-3" />
+    <EmptyState v-if="!loading && filtered.length === 0" description="无匹配用户" />
 </template>
 
 <style scoped>

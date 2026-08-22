@@ -2,18 +2,25 @@
    组件级样式（卡片/徽章/提示条/按钮等）已由 Naive UI 组件接管。 */
 :root {
   --ns-primary: #2ea44f;
-  --ns-primary-hover: #1a7f37;
-  --ns-primary-soft: #e6f4ea;
+  --ns-primary-hover: #2c974b;
+  --ns-primary-pressed: #24833c;
+  --ns-primary-soft: #d8edd8;
   --ns-text: #333;
   --ns-muted: #555;
   --ns-faint: #888;
   --ns-bg: #fbfbfb;
   --ns-card-bg: #ffffff;
   --ns-border: #e5e7eb;
-  --ns-success: #1a7f37;
-  --ns-warning: #9a6700;
-  --ns-danger: #cf222e;
-  --ns-info: #1f6feb;
+  --ns-success: #2ea44f;
+  --ns-success-soft: #d8edd8;
+  --ns-warning: #ed6c02;
+  --ns-warning-soft: #fde7d6;
+  --ns-danger: #d32f2f;
+  --ns-danger-soft: #fbe4e4;
+  --ns-info: #1976d2;
+  --ns-info-soft: #dcebff;
+  --ns-slate: #6b7280;
+  --ns-slate-soft: #eef0f2;
 }
 
 * {
@@ -115,7 +122,9 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ns-border);
   flex-wrap: wrap;
 }
 
@@ -518,7 +527,7 @@ body {
 
 .portal-stats {
   margin-top: 28px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ns-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -760,38 +769,98 @@ body {
   white-space: nowrap;
 }
 
-/* 统计卡：宽屏 4 列大卡（窄屏自适应），数值 24px 右对齐 tabular-nums */
+/* 统计卡：等宽等高 grid（宽屏自适应），flex 左图标右文本 */
 .admin-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 
-.admin-stat-card {
+/* 统计卡主体：白底 + 语义色图标方块 + 标签/数值/metric 次行 */
+.stat-card {
   background: var(--ns-card-bg);
   border: 1px solid var(--ns-border);
   border-radius: 6px;
-  padding: 16px;
+  padding: 16px 18px;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 12px;
   min-height: 96px;
 }
 
-.admin-stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--ns-text);
-  line-height: 1.2;
+/* 语义色图标方块：40px 圆角，浅色底 + 同色图标 */
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sem, var(--ns-slate-soft));
+  color: var(--sem, var(--ns-slate));
 }
 
-.admin-stat-label {
-  font-size: 13px;
-  color: var(--ns-muted);
+.stat-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
+
+.stat-label {
+  font-size: 12px;
+  color: var(--ns-faint);
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--ns-text);
+}
+
+/* metric 次行：单位小灰字后缀 */
+.stat-unit {
+  font-size: 13px;
+  color: var(--ns-faint);
+  margin-left: 2px;
+}
+
+/* 趋势：12px 绿升红降（可选项） */
+.stat-trend {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-trend--up {
+  color: var(--ns-success);
+}
+
+.stat-trend--down {
+  color: var(--ns-danger);
+}
+
+/* 数字语义配色（表格数字：绿=成功/正常，红=失败/异常） */
+.num-ok {
+  color: var(--ns-success);
+  font-variant-numeric: tabular-nums;
+}
+
+.num-fail {
+  color: var(--ns-danger);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 结构化数字分隔符（中和灰，不抢色） */
+.num-ok + .sep,
+.num-ok .sep {
+  color: var(--ns-faint);
+  font-variant-numeric: tabular-nums;
+}
+
 
 /* 按钮组：small、间距 8px、不换行 */
 .admin-btn-group {
@@ -806,4 +875,97 @@ body {
   font-size: 12px;
   color: #555;
 }
+
+/* —— 通用 UI 组件样式 —— */
+
+/* 统一空态：居中 + min-height */
+.empty-state {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 成对数值（成功/失败） */
+.metric-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-pair .metric-label {
+  color: var(--ns-faint);
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.metric-pair .sep {
+  color: var(--ns-faint);
+}
+
+/* 用户端内容壳：max-width 1100 + 居中 + 极淡网格底 */
+.user-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px 48px;
+  background-image:
+    linear-gradient(rgba(51, 51, 51, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 51, 51, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* 区块分隔（可选 .admin-section） */
+.admin-section {
+  border-bottom: 1px solid var(--ns-border);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+/* 表格行线：tbody 行底边线 + 表头 2px 深线 */
+.admin-table tbody td {
+  border-bottom: 1px solid #eef1f4;
+}
+
+.admin-table thead th {
+  border-bottom: 2px solid var(--ns-border);
+}
+
+.n-table thead th,
+.docs-table thead th {
+  border-bottom: 2px solid var(--ns-border) !important;
+}
+
+/* 卡片统一边框 + 悬停阴影（加深全局主题） */
+.n-card {
+  border-color: #e3e6ea !important;
+  transition: box-shadow 0.15s ease;
+}
+
+.n-card:hover {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* —— 响应式 <768px —— */
+@media (max-width: 767px) {
+  .user-page {
+    padding: 24px 16px 40px;
+  }
+
+  /* 按钮组移动端允许换行 */
+  .admin-btn-group {
+    flex-wrap: wrap;
+  }
+
+  /* 统计卡窄屏单列 */
+  .admin-stats {
+    grid-template-columns: 1fr;
+  }
+
+  /* 双区块行窄屏单列 */
+  .dash-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 

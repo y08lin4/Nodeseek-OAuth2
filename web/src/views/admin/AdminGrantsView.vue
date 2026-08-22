@@ -8,12 +8,13 @@ import {
   NInput,
   NSelect,
   NSpin,
-  NEmpty,
   NTable,
   NPagination,
   useMessage,
 } from 'naive-ui'
 import { Download, Search } from 'lucide-vue-next'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import {
   listAdminGrants,
   listAdminUsers,
@@ -23,7 +24,7 @@ import {
   type AdminGrant,
   type AdminClient,
 } from '../../api'
-import { formatTime } from './adminShared'
+import { formatTime, formatNum } from './adminShared'
 
 const message = useMessage()
 const router = useRouter()
@@ -124,16 +125,15 @@ onMounted(() => {
 
 <template>
   <!-- 页头 -->
-  <div class="page-head">
-    <h2 class="page-title">授权记录</h2>
-    <div class="page-actions">
+  <PageHeader title="授权记录">
+    <template #actions>
       <n-button size="small" :loading="loading" @click="loadGrants">刷新</n-button>
       <n-button size="small" @click="exportCsv">
         <template #icon><Download :size="14" /></template>
         导出 CSV
       </n-button>
-    </div>
-  </div>
+    </template>
+  </PageHeader>
 
     <!-- 过滤条 -->
     <div class="grants-filters ns-mb-3 ns-flex ns-align-center ns-gap-2 ns-flex-wrap">
@@ -204,13 +204,13 @@ onMounted(() => {
                 </n-tag>
               </td>
               <td>{{ g.revoked_at ? formatTime(g.revoked_at) : '—' }}</td>
-              <td class="tbl-num">{{ g.token_count ?? '—' }}</td>
+              <td class="tbl-num">{{ formatNum(g.token_count) }}</td>
             </tr>
           </tbody>
         </NTable>
       </div>
     </n-spin>
-    <n-empty v-if="!loading && grants.length === 0" description="暂无授权记录" size="small" class="ns-py-3" />
+    <EmptyState v-if="!loading && grants.length === 0" description="暂无授权记录" />
 
     <!-- 分页 -->
     <div class="ns-mt-3" v-if="total > perPage">

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // 管理后台 · 系统账号：列表 / 新增 / 启停 / 优先级 / 删除 + 更新 Cookie 表单
 import { computed, onMounted, ref } from 'vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import {
   NCard,
   NButton,
@@ -9,7 +11,6 @@ import {
   NSelect,
   NFormItem,
   NSpin,
-  NEmpty,
   useMessage,
   useDialog,
 } from 'naive-ui'
@@ -180,22 +181,16 @@ onMounted(() => {
 
 <template>
   <!-- 页头 -->
-  <div class="page-head">
-    <div>
-      <h2 class="page-title">系统账号</h2>
-      <p class="page-sub">私信核验依赖系统账号 Cookie，失效则服务不可用</p>
-    </div>
-    <div class="page-actions">
+  <PageHeader title="系统账号" subtitle="私信核验依赖系统账号 Cookie，失效则服务不可用">
+    <template #actions>
       <n-button size="small" :loading="accountsLoading" @click="loadAccounts">刷新</n-button>
-    </div>
-  </div>
+    </template>
+  </PageHeader>
 
     <n-spin :show="accountsLoading">
-      <n-empty
+      <EmptyState
         v-if="!accountsLoading && accounts.length === 0"
         description="暂无系统账号"
-        size="small"
-        class="ns-py-3"
       />
       <div v-else class="review-list">
         <n-card v-for="a in accounts" :key="a.account_id" size="small" class="review-item">

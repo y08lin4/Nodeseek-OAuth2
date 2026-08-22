@@ -4,8 +4,11 @@
 // - GET /api/grants 展示授权过的应用列表
 // - active 项「撤销授权」（useDialog 确认）→ POST /api/grants/{id}/revoke → 刷新
 import { onMounted, ref } from 'vue'
-import { NCard, NButton, NEmpty, NSpin, NTag, useMessage, useDialog } from 'naive-ui'
+import { NCard, NButton, NSpin, NTag, useMessage, useDialog } from 'naive-ui'
 import { listGrants, revokeGrant, ApiError, type Grant } from '../api'
+import PageHeader from '../components/ui/PageHeader.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import StatusTag from '../components/ui/StatusTag.vue'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -79,18 +82,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <n-card class="page-card">
-    <template #header>
-      <span class="page-title">我的授权</span>
-    </template>
-    <p class="ns-card-sub">管理你授权给第三方应用的身份访问权限</p>
+  <div class="user-page">
+    <PageHeader title="我的授权" subtitle="管理你授权给第三方应用的身份访问权限" />
 
     <n-spin :show="loading">
-      <n-empty
-        v-if="!loading && grants.length === 0"
-        description="还没有授权任何应用。"
-        class="ns-py-4"
-      />
+      <EmptyState v-if="!loading && grants.length === 0" description="还没有授权任何应用。" />
       <div v-else class="review-list">
         <n-card v-for="g in grants" :key="g.client_id" size="small" class="review-item">
           <div class="ns-flex ns-align-center ns-gap-3">
@@ -103,10 +99,7 @@ onMounted(async () => {
             <n-tag :type="g.min_rank > 0 ? 'warning' : 'default'" size="small" round>
               {{ g.min_rank > 0 ? `最低等级 ${g.min_rank}` : '不限等级' }}
             </n-tag>
-            <!-- 状态徽章：active 有效 / revoked 已撤销 -->
-            <n-tag :type="g.status === 'active' ? 'success' : 'default'" size="small" round>
-              {{ g.status === 'active' ? '有效' : '已撤销' }}
-            </n-tag>
+            <StatusTag :status="g.status === 'active' ? 'active' : 'revoked'" :text="g.status === 'active' ? '有效' : '已撤销'" />
           </div>
           <!-- 仅 active 授权可撤销 -->
           <div v-if="g.status === 'active'" class="review-actions">
@@ -122,5 +115,5 @@ onMounted(async () => {
         </n-card>
       </div>
     </n-spin>
-  </n-card>
+  </div>
 </template>

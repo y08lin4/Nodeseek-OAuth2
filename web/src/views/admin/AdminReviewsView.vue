@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // 管理后台 · 审核队列：通过/拒绝（拒绝可填理由）
 import { h, onMounted, ref } from 'vue'
-import { NCard, NButton, NTag, NInput, NSpin, NEmpty, useMessage, useDialog } from 'naive-ui'
+import { NCard, NButton, NTag, NInput, NSpin, useMessage, useDialog } from 'naive-ui'
 import { ExternalLink } from 'lucide-vue-next'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import { listReviews, reviewAction, ApiError, type ReviewItem } from '../../api'
 import { reviewTypeText, reviewTypeClass, formatTime } from './adminShared'
 
@@ -76,22 +78,16 @@ onMounted(loadReviews)
 
 <template>
   <!-- 页头 -->
-  <div class="page-head">
-    <div>
-      <h2 class="page-title">审核队列</h2>
-      <p class="page-sub">待处理的应用申请 / 暂停 / 恢复 / 删除请求</p>
-    </div>
-    <div class="page-actions">
+  <PageHeader title="审核队列" subtitle="待处理的应用申请 / 暂停 / 恢复 / 删除请求">
+    <template #actions>
       <n-button size="small" :loading="reviewsLoading" @click="loadReviews">刷新</n-button>
-    </div>
-  </div>
+    </template>
+  </PageHeader>
 
     <n-spin :show="reviewsLoading">
-      <n-empty
+      <EmptyState
         v-if="!reviewsLoading && reviews.length === 0"
         description="暂无待审核项"
-        size="small"
-        class="ns-py-3"
       />
       <div v-else class="review-list">
         <n-card v-for="r in reviews" :key="r.client_id" size="small" class="review-item">

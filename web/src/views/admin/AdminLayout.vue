@@ -244,6 +244,12 @@ async function handleLogout() {
   flex: 1;
   min-width: 0;
   padding: 24px 32px 48px;
+  /* 极淡网格底（线条语言），覆盖继承的 --ns-bg */
+  background-image:
+    linear-gradient(rgba(51, 51, 51, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 51, 51, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-color: var(--ns-bg);
 }
 
 .admin-logout-btn {

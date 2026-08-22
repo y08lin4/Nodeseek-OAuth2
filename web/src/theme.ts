@@ -1,52 +1,64 @@
-// naive-ui 品牌主题覆盖（NS 风格：GitHub 绿主色 + 灰字体系 + Pure 直角）
+// naive-ui 品牌主题覆盖（NS 风格：GitHub 绿主色 + 灰字体系 + 6px 圆角）
 // 与 src/style.css 的 :root CSS 变量保持一致，一套色板两处引用。
 import type { GlobalThemeOverrides } from 'naive-ui'
 
 export const themeOverrides: GlobalThemeOverrides = {
   common: {
-    // 主色（NS 实测 #2ea44f 系列）
+    // 主色体系（NS 实测 #2ea44f 系列）
     primaryColor: '#2ea44f',
-    primaryColorHover: '#1a7f37',
-    primaryColorPressed: '#1a7f37',
-    primaryColorSuppl: '#2ea44f',
+    primaryColorHover: '#2c974b',
+    primaryColorPressed: '#24833c',
+    primaryColorSuppl: '#d8edd8',
     // 语义色（GitHub Primer）
-    infoColor: '#1f6feb',
-    infoColorHover: '#1a55c9',
-    infoColorPressed: '#1a55c9',
-    successColor: '#1a7f37',
-    successColorHover: '#2ea44f',
-    successColorPressed: '#0d5e27',
-    warningColor: '#9a6700',
-    warningColorHover: '#b87b00',
-    warningColorPressed: '#7a5200',
-    errorColor: '#cf222e',
-    errorColorHover: '#e0484f',
-    errorColorPressed: '#a81222',
-    // 文本色（深灰，NS --dark-color）
+    infoColor: '#1976d2',
+    infoColorHover: '#1565c0',
+    infoColorPressed: '#0d47a1',
+    successColor: '#2ea44f',
+    successColorHover: '#2c974b',
+    successColorPressed: '#1a7f37',
+    warningColor: '#ed6c02',
+    warningColorHover: '#bf5a00',
+    warningColorPressed: '#9a6700',
+    errorColor: '#d32f2f',
+    errorColorHover: '#b71c1c',
+    errorColorPressed: '#9e1a1a',
+    // 文本色层级
     textColorBase: '#333',
     textColor1: '#333',
     textColor2: '#555',
     textColor3: '#888',
-    // 边框（Tailwind 灰）
+    // 边框与圆角（统一 6px）
     borderColor: '#e5e7eb',
-    // 圆角收紧（Pure 风：直角）
-    borderRadius: '4px',
+    borderRadius: '6px',
   },
   Button: {
-    borderRadius: '4px',
-    borderRadiusMedium: '4px',
-    borderRadiusLarge: '4px',
+    borderRadius: '6px',
+    borderRadiusMedium: '6px',
+    borderRadiusLarge: '6px',
+    borderRadiusSmall: '6px',
+    fontSizeMedium: '14px',
     fontWeight: '600',
   },
   Card: {
     borderRadius: '6px',
     borderColor: '#e5e7eb',
+    paddingMedium: '20px',
+    titleFontSizeMedium: '15px',
+    titleFontWeight: '600',
+  },
+  Dialog: {
+    borderRadius: '6px',
   },
   Tag: {
-    borderRadius: '4px',
+    borderRadius: '6px',
+    fontWeight: '500',
   },
   Input: {
-    borderRadius: '4px',
+    borderRadius: '6px',
+    heightMedium: '32px',
+  },
+  Select: {
+    borderRadius: '6px',
   },
   Alert: {
     borderRadius: '6px',
@@ -54,17 +66,19 @@ export const themeOverrides: GlobalThemeOverrides = {
   Table: {
     borderRadius: '6px',
     thColor: '#fbfbfb',
+    thFontWeight: '600',
   },
   Empty: {
     borderRadius: '6px',
   },
-  Select: {
-    borderRadius: '4px',
-  },
   DatePicker: {
-    borderRadius: '4px',
+    borderRadius: '6px',
   },
   Popover: {
     borderRadius: '6px',
   },
+  DataTable: {
+    borderRadius: '6px',
+  },
 }
+
