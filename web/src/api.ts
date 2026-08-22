@@ -350,11 +350,11 @@ export function getAdminStatus(adminToken?: string): Promise<AdminStatus> {
   })
 }
 
-/** POST /api/admin/login：验证管理令牌并签发 httpOnly 管理会话 Cookie */
-export function adminLogin(token: string): Promise<LogoutResp> {
+/** POST /api/admin/login：账号密码验证并签发 httpOnly 管理会话 Cookie */
+export function adminLogin(username: string, password: string): Promise<LogoutResp> {
   return request<LogoutResp>('/api/admin/login', {
     method: 'POST',
-    body: { token },
+    body: { username, password },
   })
 }
 

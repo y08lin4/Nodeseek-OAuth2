@@ -196,10 +196,10 @@ func (a *API) currentSession(r *http.Request) *auth.Session {
 //   a) 请求 Cookie ns_admin_session 命中会话 map 且未过期；
 //   b) X-Admin-Token 头与 cfg.AdminToken 常量时间相等（保留浏览器扩展调用路径）；
 //   c) 都不满足 → 401。
-// 未设置 NS_ADMIN_TOKEN 时管理系统未启用，一律 403。
+// 未设置 NS_ADMIN_TOKEN 且未设置账号密码时管理系统未启用，一律 403。
 func (a *API) checkAdmin(w http.ResponseWriter, r *http.Request) bool {
-	if a.cfg.AdminToken == "" {
-		writeError(w, http.StatusForbidden, "管理接口未启用（未设置 NS_ADMIN_TOKEN）")
+	if a.cfg.AdminToken == "" && a.cfg.AdminUser == "" {
+		writeError(w, http.StatusForbidden, "管理接口未启用（未设置 NS_ADMIN_TOKEN 或 NS_ADMIN_USER/NS_ADMIN_PASSWORD）")
 		return false
 	}
 	// a) 会话 Cookie。
@@ -1516,11 +1516,14 @@ func notifyUnsubscribeHTML(err bool, msg, appName string) string {
 	return head + "<div style=\"" + cardStyle + "\"><h2 style=\"color:" + titleColor + ";margin:0 0 12px\">" + title + "</h2><p style=\"color:#666;margin:0\">" + sub + "</p><p style=\"color:#aaa;margin-top:24px;font-size:12px\">Nodeseek OAuth2</p></div></body></html>"
 }
 
-// handleAdminLogin POST /api/admin/login（JSON {"token":"..."}）管理端登录。
+// handleAdminLogin POST /api/admin/login（JSON {"username":"...","password":"..."}）管理端账号密码登录。
 // 成功 → 200 + Set-Cookie ns_admin_session；失败 → 401；登录失败限流（每 IP 10/min）。
+// 兼容旧 {"token"} 请求体（调用方为 NS_ADMIN_TOKEN 时通过），扩展推送仍走 X-Admin-Token 头。
 func (a *API) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Token string `json:"token"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Token    string `json:"token"` // 兼容旧令牌登录
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "请求体格式错误")
@@ -1534,10 +1537,20 @@ func (a *API) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if a.cfg.AdminToken == "" || req.Token == "" ||
-		subtle.ConstantTimeCompare([]byte(a.cfg.AdminToken), []byte(req.Token)) != 1 {
-		a.audit.Eventf("admin.login.fail", ip, "", "", "令牌错误")
-		writeError(w, http.StatusUnauthorized, "管理令牌错误")
+	ok := false
+	if req.Username != "" && req.Password != "" && a.cfg.AdminUser != "" {
+		ok = subtle.ConstantTimeCompare([]byte(a.cfg.AdminUser), []byte(req.Username)) == 1 &&
+			subtle.ConstantTimeCompare([]byte(a.cfg.AdminPassword), []byte(req.Password)) == 1
+	}
+	// 兼容：旧令牌登录（用户名密码未配置时回退；两者任一命中即通过）。
+	if !ok && a.cfg.AdminToken != "" && req.Token != "" &&
+		subtle.ConstantTimeCompare([]byte(a.cfg.AdminToken), []byte(req.Token)) == 1 {
+		ok = true
+	}
+
+	if !ok {
+		a.audit.Eventf("admin.login.fail", ip, "", "", "账号或密码错误")
+		writeError(w, http.StatusUnauthorized, "账号或密码错误")
 		return
 	}
 

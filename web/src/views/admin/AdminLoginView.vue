@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 管理后台登录页：输入管理令牌 → POST /api/admin/login 签发 httpOnly 会话
+// 管理后台登录页：账号密码 → POST /api/admin/login 签发 httpOnly 会话
 // 成功跳 ?next 或 /admin/dashboard
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -11,19 +11,20 @@ const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 
-const token = ref('')
+const username = ref('')
+const password = ref('')
 const loading = ref(false)
 const errorText = ref('')
 
 async function handleLogin() {
-  if (!token.value.trim()) {
-    errorText.value = '请输入管理令牌'
+  if (!username.value.trim() || !password.value) {
+    errorText.value = '请输入用户名和密码'
     return
   }
   errorText.value = ''
   loading.value = true
   try {
-    await adminLogin(token.value.trim())
+    await adminLogin(username.value.trim(), password.value)
     message.success('登录成功')
     const next = typeof route.query.next === 'string' ? route.query.next : ''
     router.replace(next && next.startsWith('/admin') ? next : '/admin/dashboard')
@@ -44,13 +45,21 @@ async function handleLogin() {
       <h1 class="admin-login-title">管理后台登录</h1>
       <n-alert v-if="errorText" type="error" class="ns-mb-3">{{ errorText }}</n-alert>
       <n-form @submit.prevent="handleLogin">
-        <n-form-item label="管理令牌">
+        <n-form-item label="用户名">
           <n-input
-            v-model:value="token"
+            v-model:value="username"
+            placeholder="服务端 NS_ADMIN_USER 配置"
+            :input-props="{ autocomplete: 'username' }"
+            @keydown.enter="handleLogin"
+          />
+        </n-form-item>
+        <n-form-item label="密码">
+          <n-input
+            v-model:value="password"
             type="password"
             show-password-on="click"
-            placeholder="输入管理令牌（服务端 NS_ADMIN_TOKEN 配置）"
-            :input-props="{ autocomplete: 'off' }"
+            placeholder="服务端 NS_ADMIN_PASSWORD 配置"
+            :input-props="{ autocomplete: 'current-password' }"
             @keydown.enter="handleLogin"
           />
         </n-form-item>
@@ -59,7 +68,7 @@ async function handleLogin() {
         </n-button>
       </n-form>
       <p class="admin-login-hint ns-mt-3">
-        令牌在服务端通过 <code>NS_ADMIN_TOKEN</code> 环境变量配置，登录成功后签发管理会话。
+        账号密码在服务端通过 <code>NS_ADMIN_USER</code> / <code>NS_ADMIN_PASSWORD</code> 环境变量配置，登录成功后签发管理会话。
       </p>
     </n-card>
   </div>

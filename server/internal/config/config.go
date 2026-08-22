@@ -17,6 +17,8 @@ type Config struct {
 	Port                  string   // 监听端口（PORT）
 	SecretKey             string   // 原始密钥字符串（NS_SECRET_KEY），用于 AES-GCM 与 HMAC 派生
 	AdminToken            string   // 管理接口令牌（NS_ADMIN_TOKEN），为空则管理接口一律 403
+	AdminUser             string   // 管理登录用户名（NS_ADMIN_USER，登录页账号）
+	AdminPassword         string   // 管理登录密码（NS_ADMIN_PASSWORD，登录页密码）
 	MockMode              bool     // 是否跳过真实私信核验、用户信息拉取与创建应用等级门槛（NS_MOCK_MODE=1）
 	AuthAccountID         string   // 系统账号 NS 数字 ID（NS_AUTH_ACCOUNT_ID）
 	AuthAccountName       string   // 系统账号用户名（NS_AUTH_ACCOUNT_NAME）
@@ -51,6 +53,8 @@ func Load() *Config {
 		Port:                  getenv("PORT", "8080"),
 		SecretKey:             os.Getenv("NS_SECRET_KEY"),
 		AdminToken:            os.Getenv("NS_ADMIN_TOKEN"),
+		AdminUser:             os.Getenv("NS_ADMIN_USER"),
+		AdminPassword:         os.Getenv("NS_ADMIN_PASSWORD"),
 		MockMode:              getenv("NS_MOCK_MODE", "0") == "1",
 		AuthAccountID:         getenv("NS_AUTH_ACCOUNT_ID", ""),
 		AuthAccountName:       getenv("NS_AUTH_ACCOUNT_NAME", ""),
