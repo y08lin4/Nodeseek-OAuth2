@@ -678,8 +678,12 @@ body {
 /* 表格：行高 44 / 表头 48、表头 12px #888、斑马纹、容器 overflow-x auto */
 .admin-table {
   width: 100%;
-  font-size: 13px;
+  font-size: 14px;
   overflow-x: auto;
+}
+
+.admin-table table {
+  width: 100%;
 }
 
 .admin-table .n-data-table {
@@ -724,11 +728,11 @@ body {
   white-space: nowrap;
 }
 
-/* 统计卡：auto-fit minmax(200px,1fr) 等宽等高、数值 24px 右对齐 tabular-nums */
+/* 统计卡：宽屏 4 列大卡（窄屏自适应），数值 24px 右对齐 tabular-nums */
 .admin-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
 }
 
 .admin-stat-card {
