@@ -3,7 +3,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  NCard,
   NButton,
   NTag,
   NInput,
@@ -124,16 +123,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <n-card class="admin-page-card">
-    <template #header>
-      <div class="ns-flex ns-align-center ns-justify-between ns-w-100">
-        <span class="page-title">授权记录</span>
-        <n-button size="small" @click="exportCsv">
-          <template #icon><Download :size="14" /></template>
-          导出 CSV
-        </n-button>
-      </div>
-    </template>
+  <!-- 页头 -->
+  <div class="page-head">
+    <h2 class="page-title">授权记录</h2>
+    <div class="page-actions">
+      <n-button size="small" :loading="loading" @click="loadGrants">刷新</n-button>
+      <n-button size="small" @click="exportCsv">
+        <template #icon><Download :size="14" /></template>
+        导出 CSV
+      </n-button>
+    </div>
+  </div>
 
     <!-- 过滤条 -->
     <div class="grants-filters ns-mb-3 ns-flex ns-align-center ns-gap-2 ns-flex-wrap">
@@ -216,11 +216,4 @@ onMounted(() => {
     <div class="ns-mt-3" v-if="total > perPage">
       <n-pagination v-model:page="page" :page-size="perPage" :item-count="total" size="small" />
     </div>
-  </n-card>
 </template>
-
-<style scoped>
-.admin-page-card {
-  border-radius: 6px;
-}
-</style>

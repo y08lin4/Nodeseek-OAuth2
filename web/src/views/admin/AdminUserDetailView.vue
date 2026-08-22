@@ -93,10 +93,16 @@ onMounted(loadAll)
 
 <template>
   <div>
-    <n-button size="small" text class="ns-mb-3" @click="router.push('/admin/users')">
-      <template #icon><ArrowLeft :size="14" /></template>
-      返回用户列表
-    </n-button>
+    <!-- 页头 -->
+    <div class="page-head">
+      <h2 class="page-title">用户详情<template v-if="detail">：{{ detail.nickname }}</template></h2>
+      <div class="page-actions">
+        <n-button size="small" @click="router.push('/admin/users')">
+          <template #icon><ArrowLeft :size="14" /></template>
+          返回用户列表
+        </n-button>
+      </div>
+    </div>
 
     <n-spin :show="loading">
       <!-- 头部卡 -->

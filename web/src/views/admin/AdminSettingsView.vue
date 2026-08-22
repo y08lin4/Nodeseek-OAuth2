@@ -20,6 +20,7 @@ import {
   testMail,
   getAdminSmtp,
   saveAdminSmtp,
+  patchAdminPassword,
   ApiError,
   type AdminStatus,
   type SmtpTlsMode,
@@ -136,6 +137,36 @@ async function handleTestMail() {
   }
 }
 
+// —— 修改密码 ——
+const pwForm = ref({ old: '', next: '', confirm: '' })
+const pwSaving = ref(false)
+
+async function handleChangePassword() {
+  const { old: oldPw, next, confirm } = pwForm.value
+  if (!oldPw) {
+    message.error('请输入旧密码')
+    return
+  }
+  if (!next || next.length < 8) {
+    message.error('新密码长度不能少于 8 位')
+    return
+  }
+  if (next !== confirm) {
+    message.error('两次输入的新密码不一致')
+    return
+  }
+  pwSaving.value = true
+  try {
+    await patchAdminPassword(oldPw, next)
+    message.success('密码已修改，下次登录生效')
+    pwForm.value = { old: '', next: '', confirm: '' }
+  } catch (e) {
+    message.error(e instanceof ApiError ? e.message : '修改密码失败')
+  } finally {
+    pwSaving.value = false
+  }
+}
+
 onMounted(() => {
   loadStatus()
   loadSmtp()
@@ -143,11 +174,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <n-card class="admin-page-card">
-    <template #header>
-      <span class="page-title">设置</span>
-    </template>
-    <p class="ns-card-sub">邮件通知与系统信息</p>
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h2 class="page-title">设置</h2>
+      <p class="page-sub">邮件通知与系统信息</p>
+    </div>
+  </div>
 
     <n-spin :show="loading">
       <!-- 邮件配置 -->
@@ -232,6 +265,45 @@ onMounted(() => {
         </n-spin>
       </n-form>
 
+      <!-- 安全：修改密码 -->
+      <n-card class="admin-page-card ns-mt-4" title="安全">
+        <h2 class="ns-h6 ns-mb-3">修改密码</h2>
+        <n-form class="admin-smtp-form" label-placement="top" label-width="auto">
+          <n-form-item label="旧密码" class="admin-form-item">
+            <n-input
+              v-model:value="pwForm.old"
+              type="password"
+              show-password-on="click"
+              placeholder="当前登录密码"
+              :input-props="{ autocomplete: 'current-password' }"
+            />
+          </n-form-item>
+          <n-form-item label="新密码" class="admin-form-item">
+            <n-input
+              v-model:value="pwForm.next"
+              type="password"
+              show-password-on="click"
+              placeholder="至少 8 位"
+              :input-props="{ autocomplete: 'new-password' }"
+            />
+          </n-form-item>
+          <n-form-item label="确认新密码" class="admin-form-item">
+            <n-input
+              v-model:value="pwForm.confirm"
+              type="password"
+              show-password-on="click"
+              placeholder="再次输入新密码"
+              :input-props="{ autocomplete: 'new-password' }"
+            />
+          </n-form-item>
+          <div class="ns-mt-3">
+            <n-button type="primary" size="small" :loading="pwSaving" @click="handleChangePassword">
+              修改密码
+            </n-button>
+          </div>
+        </n-form>
+      </n-card>
+
       <!-- 系统信息 -->
       <h2 class="ns-h6 ns-mt-4 ns-mb-3">系统信息</h2>
       <div v-if="status" class="detail-row">
@@ -251,7 +323,6 @@ onMounted(() => {
         </span>
       </div>
     </n-spin>
-  </n-card>
 </template>
 
 <style scoped>

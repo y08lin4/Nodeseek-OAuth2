@@ -179,11 +179,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <n-card class="admin-page-card">
-    <template #header>
-      <span class="page-title">系统账号</span>
-    </template>
-    <p class="ns-card-sub">私信核验依赖系统账号 Cookie，失效则服务不可用</p>
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h2 class="page-title">系统账号</h2>
+      <p class="page-sub">私信核验依赖系统账号 Cookie，失效则服务不可用</p>
+    </div>
+    <div class="page-actions">
+      <n-button size="small" :loading="accountsLoading" @click="loadAccounts">刷新</n-button>
+    </div>
+  </div>
 
     <n-spin :show="accountsLoading">
       <n-empty
@@ -257,11 +262,4 @@ onMounted(() => {
       </n-form-item>
       <n-button type="primary" :loading="saving" @click="submitCookie">更新 Cookie</n-button>
     </div>
-  </n-card>
 </template>
-
-<style scoped>
-.admin-page-card {
-  border-radius: 6px;
-}
-</style>

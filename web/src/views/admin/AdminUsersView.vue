@@ -2,7 +2,7 @@
 // 管理后台 · 用户：列表 / 搜索（ID/昵称前端过滤）/ 拉黑解禁 / 社区主页 / CSV 导出
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NButton, NTag, NInput, NSpin, NEmpty, NTable, useMessage, useDialog } from 'naive-ui'
+import { NButton, NTag, NInput, NSpin, NEmpty, NTable, useMessage, useDialog } from 'naive-ui'
 import { ExternalLink, Ban, ShieldOff, Download, Search } from 'lucide-vue-next'
 import {
   listAdminUsers,
@@ -85,22 +85,20 @@ onMounted(loadUsers)
 </script>
 
 <template>
-  <n-card class="admin-page-card">
-    <template #header>
-      <div class="ns-flex ns-align-center ns-justify-between ns-w-100">
-        <span class="page-title">用户管理</span>
-        <div class="admin-btn-group">
-          <n-button size="small" :loading="loading" @click="loadUsers">刷新</n-button>
-          <n-button size="small" @click="exportCsv">
-            <template #icon><Download :size="14" /></template>
-            导出 CSV
-          </n-button>
-        </div>
-      </div>
-    </template>
+  <!-- 页头 -->
+  <div class="page-head">
+    <h2 class="page-title">用户管理</h2>
+    <div class="page-actions">
+      <n-button size="small" :loading="loading" @click="loadUsers">刷新</n-button>
+      <n-button size="small" @click="exportCsv">
+        <template #icon><Download :size="14" /></template>
+        导出 CSV
+      </n-button>
+    </div>
+  </div>
 
-    <!-- 摘要卡 -->
-    <div class="admin-stats ns-mb-4">
+  <!-- 摘要卡 -->
+  <div class="admin-stats ns-mb-4">
       <div class="admin-stat-card">
         <div class="admin-stat-value">{{ summary.total }}</div>
         <div class="admin-stat-label">总用户</div>
@@ -174,14 +172,9 @@ onMounted(loadUsers)
       </div>
     </n-spin>
     <n-empty v-if="!loading && filtered.length === 0" description="无匹配用户" size="small" class="ns-py-3" />
-  </n-card>
 </template>
 
 <style scoped>
-.admin-page-card {
-  border-radius: 6px;
-}
-
 .admin-filter-bar {
   max-width: 320px;
 }

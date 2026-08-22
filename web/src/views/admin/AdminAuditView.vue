@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 管理后台 · 审计日志：limit + 刷新 + 过滤（事件类型 / 级别 / 用户 ID，前端过滤）+ 汉化分层
 import { computed, onMounted, ref } from 'vue'
-import { NCard, NButton, NInputNumber, NInput, NSelect, NSpin, NTable, NEmpty, NTag, useMessage } from 'naive-ui'
+import { NButton, NInputNumber, NInput, NSelect, NSpin, NTable, NEmpty, NTag, useMessage } from 'naive-ui'
 import { listAudit, ApiError, type AuditEvent } from '../../api'
 import {
   formatTime,
@@ -81,11 +81,16 @@ onMounted(loadAudit)
 </script>
 
 <template>
-  <n-card class="admin-page-card">
-    <template #header>
-      <span class="page-title">审计日志</span>
-    </template>
-    <p class="ns-card-sub">系统操作审计：登录 / 授权 / 管理动作</p>
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h2 class="page-title">审计日志</h2>
+      <p class="page-sub">系统操作审计：登录 / 授权 / 管理动作</p>
+    </div>
+    <div class="page-actions">
+      <n-button size="small" :loading="auditLoading" @click="loadAudit">刷新</n-button>
+    </div>
+  </div>
 
     <div class="ns-flex ns-align-center ns-gap-2 ns-mb-3 ns-flex-wrap">
       <n-input-number
@@ -115,7 +120,6 @@ onMounted(loadAudit)
         style="width: 180px"
         clearable
       />
-      <n-button size="small" :loading="auditLoading" @click="loadAudit">刷新</n-button>
     </div>
 
     <n-spin :show="auditLoading">
@@ -151,11 +155,4 @@ onMounted(loadAudit)
         </tbody>
       </n-table>
     </n-spin>
-  </n-card>
 </template>
-
-<style scoped>
-.admin-page-card {
-  border-radius: 6px;
-}
-</style>

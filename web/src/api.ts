@@ -873,3 +873,16 @@ export function saveAdminSmtp(
   })
 }
 
+/** PATCH /api/admin/password：修改管理端密码（凭会话；新密码下次登录生效） */
+export function patchAdminPassword(
+  oldPassword: string,
+  newPassword: string,
+  adminToken?: string,
+): Promise<LogoutResp> {
+  return request<LogoutResp>('/api/admin/password', {
+    method: 'PATCH',
+    headers: adminToken ? { 'X-Admin-Token': adminToken } : undefined,
+    body: { old_password: oldPassword, new_password: newPassword },
+  })
+}
+

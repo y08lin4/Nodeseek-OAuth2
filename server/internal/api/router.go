@@ -90,6 +90,7 @@ func NewRouter(cfg *config.Config, st *store.Store, ns *nodeseek.Client, key [32
 	mux.HandleFunc("GET /api/client/notifications/unsubscribe", a.handleClientNotifyUnsubscribe)
 	mux.HandleFunc("POST /api/admin/login", a.handleAdminLogin)
 	mux.HandleFunc("POST /api/admin/logout", a.handleAdminLogout)
+	mux.HandleFunc("PATCH /api/admin/password", a.handleAdminPassword)
 	mux.HandleFunc("POST /api/admin/cookie", a.handleAdminCookie)
 	mux.HandleFunc("GET /api/admin/status", a.handleAdminStatus)
 	mux.HandleFunc("GET /api/admin/accounts", a.handleAdminAccountsList)
@@ -196,10 +197,10 @@ func (a *API) currentSession(r *http.Request) *auth.Session {
 //   a) 请求 Cookie ns_admin_session 命中会话 map 且未过期；
 //   b) X-Admin-Token 头与 cfg.AdminToken 常量时间相等（保留浏览器扩展调用路径）；
 //   c) 都不满足 → 401。
-// 未设置 NS_ADMIN_TOKEN 且未设置账号密码时管理系统未启用，一律 403。
+// 未配置任何管理凭据（token / env 账号 / admin.json）时管理系统未启用，一律 403。
 func (a *API) checkAdmin(w http.ResponseWriter, r *http.Request) bool {
-	if a.cfg.AdminToken == "" && a.cfg.AdminUser == "" {
-		writeError(w, http.StatusForbidden, "管理接口未启用（未设置 NS_ADMIN_TOKEN 或 NS_ADMIN_USER/NS_ADMIN_PASSWORD）")
+	if !a.adminCredentialsConfigured() {
+		writeError(w, http.StatusForbidden, "管理接口未启用（未设置管理凭据）")
 		return false
 	}
 	// a) 会话 Cookie。
@@ -216,6 +217,51 @@ func (a *API) checkAdmin(w http.ResponseWriter, r *http.Request) bool {
 	// c) 都未通过。
 	writeError(w, http.StatusUnauthorized, "管理鉴权失败（需登录或提供 X-Admin-Token）")
 	return false
+}
+
+// adminCredentialsConfigured 判断管理系统是否已配置任一凭据：
+// env 令牌 / env 账号 / admin.json 存储凭据，任一即启用。
+func (a *API) adminCredentialsConfigured() bool {
+	if a.cfg.AdminToken != "" || a.cfg.AdminUser != "" {
+		return true
+	}
+	c, err := a.store.GetAdminCred()
+	return err == nil && c != nil && c.Username != ""
+}
+
+// adminLoginValid 校验管理账号登录（password 校验）。
+// 存储优先于 env：admin.json 存在则只匹配存储，否则匹配 env；
+// 两者都未配置返回 false（由调用方回退令牌登录）。
+func (a *API) adminLoginValid(username, password string) bool {
+	if username == "" || password == "" {
+		return false
+	}
+	c, err := a.store.GetAdminCred()
+	if err == nil && c != nil && c.Username != "" {
+		// 存储凭据优先。
+		if uidOK := subtle.ConstantTimeCompare([]byte(c.Username), []byte(username)) == 1; !uidOK {
+			return false
+		}
+		storedPass, derr := a.store.DecryptAdminPassword(c)
+		if derr != nil {
+			return false
+		}
+		return subtle.ConstantTimeCompare([]byte(storedPass), []byte(password)) == 1
+	}
+	// 回退 env 账号。
+	if a.cfg.AdminUser == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(a.cfg.AdminUser), []byte(username)) == 1 &&
+		subtle.ConstantTimeCompare([]byte(a.cfg.AdminPassword), []byte(password)) == 1
+}
+
+// currentAdminUsername 返回当前生效的管理用户名（存储优先于 env；都无则回退空）。
+func (a *API) currentAdminUsername() string {
+	if c, err := a.store.GetAdminCred(); err == nil && c != nil && c.Username != "" {
+		return c.Username
+	}
+	return a.cfg.AdminUser
 }
 
 // validAdminSession 校验会话 ID 是否有效且未过期（失效项同时清除）。并发安全。
@@ -1538,11 +1584,11 @@ func (a *API) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ok := false
-	if req.Username != "" && req.Password != "" && a.cfg.AdminUser != "" {
-		ok = subtle.ConstantTimeCompare([]byte(a.cfg.AdminUser), []byte(req.Username)) == 1 &&
-			subtle.ConstantTimeCompare([]byte(a.cfg.AdminPassword), []byte(req.Password)) == 1
+	// 账号密码登录：存储凭据优先，其次 env；两者都未命中则回退旧令牌。
+	if a.adminLoginValid(req.Username, req.Password) {
+		ok = true
 	}
-	// 兼容：旧令牌登录（用户名密码未配置时回退；两者任一命中即通过）。
+	// 兼容：旧令牌登录（账号密码未通过时回退；任一命中即通过）。
 	if !ok && a.cfg.AdminToken != "" && req.Token != "" &&
 		subtle.ConstantTimeCompare([]byte(a.cfg.AdminToken), []byte(req.Token)) == 1 {
 		ok = true
@@ -1588,6 +1634,77 @@ func (a *API) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
 	})
 	a.audit.Eventf("admin.logout", remoteIP(r), "", "", "")
 	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+// handleAdminPassword PATCH /api/admin/password（X-Admin-Token 或会话鉴权）修改管理凭据密码。
+// 请求体 {old_password, new_password}；成功写入 admin.json 且立即生效（当前会话不失效）。
+func (a *API) handleAdminPassword(w http.ResponseWriter, r *http.Request) {
+	if !a.checkAdmin(w, r) {
+		return
+	}
+	var req struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "请求体格式错误")
+		return
+	}
+	if req.OldPassword == "" || req.NewPassword == "" {
+		writeError(w, http.StatusUnprocessableEntity, "old_password 与 new_password 均必填")
+		return
+	}
+	if len(req.NewPassword) < 8 {
+		writeError(w, http.StatusUnprocessableEntity, "new_password 长度至少 8 位")
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(req.OldPassword), []byte(req.NewPassword)) == 1 {
+		writeError(w, http.StatusUnprocessableEntity, "new_password 不能与 old_password 相同")
+		return
+	}
+	ip := remoteIP(r)
+
+	// 校验旧密码（存储或 env 当前凭据）。
+	if !a.storePasswordValid(req.OldPassword) {
+		a.audit.Eventf("admin.password.change_fail", ip, "", "", "旧密码错误")
+		writeError(w, http.StatusUnauthorized, "旧密码错误")
+		return
+	}
+
+	username := a.currentAdminUsername()
+	if username == "" {
+		// 理论上 checkAdmin 已保证有凭据；防御性兜底。
+		a.audit.Eventf("admin.password.change_fail", ip, "", "", "无可用用户名")
+		writeError(w, http.StatusInternalServerError, "无法确定当前管理用户名")
+		return
+	}
+
+	if _, err := a.store.SetAdminCred(username, req.NewPassword); err != nil {
+		a.audit.Eventf("admin.password.change_fail", ip, "", "", "写入失败")
+		writeError(w, http.StatusInternalServerError, "保存凭据失败")
+		return
+	}
+	a.audit.Eventf("admin.password.change", ip, "", "", "密码已修改")
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+// storePasswordValid 校验密码是否匹配当前生效凭据（存储优先，其次 env）。
+func (a *API) storePasswordValid(password string) bool {
+	if password == "" {
+		return false
+	}
+	if c, err := a.store.GetAdminCred(); err == nil && c != nil && c.PasswordCipher != "" {
+		stored, derr := a.store.DecryptAdminPassword(c)
+		if derr != nil {
+			return false
+		}
+		return subtle.ConstantTimeCompare([]byte(stored), []byte(password)) == 1
+	}
+	// 回退 env 密码。
+	if a.cfg.AdminPassword == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(a.cfg.AdminPassword), []byte(password)) == 1
 }
 
 // handleClientPatch PATCH /api/client/{client_id}

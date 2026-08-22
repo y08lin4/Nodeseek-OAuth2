@@ -2,7 +2,6 @@
 // 管理后台 · 应用管理：表格列表 + 暂停/恢复/调整 token_ttl/reset-secret/详情模态/强制删除
 import { onMounted, ref } from 'vue'
 import {
-  NCard,
   NButton,
   NTag,
   NSpin,
@@ -150,15 +149,16 @@ onMounted(loadClients)
 </script>
 
 <template>
-  <n-card class="admin-page-card">
-    <template #header>
-      <span class="page-title">应用管理</span>
-    </template>
-    <p class="ns-card-sub">全部第三方应用：状态 / token 有效期 / 授权统计 / 密钥管理</p>
-
-    <div class="ns-flex ns-align-center ns-gap-2 ns-mb-3">
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h2 class="page-title">应用管理</h2>
+      <p class="page-sub">全部第三方应用：状态 / token 有效期 / 授权统计 / 密钥管理</p>
+    </div>
+    <div class="page-actions">
       <n-button size="small" :loading="clientsLoading" @click="loadClients">刷新</n-button>
     </div>
+  </div>
 
     <n-spin :show="clientsLoading">
       <n-empty v-if="!clientsLoading && clients.length === 0" description="暂无应用" size="small" class="ns-py-3" />
@@ -338,14 +338,9 @@ onMounted(loadClients)
         </div>
       </template>
     </n-modal>
-  </n-card>
 </template>
 
 <style scoped>
-.admin-page-card {
-  border-radius: 6px;
-}
-
 .app-actions {
   /* 继承全局 .admin-btn-group 的 nowrap：操作按钮恒横排，不竖排堆叠 */
 }

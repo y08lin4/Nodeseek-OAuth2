@@ -75,11 +75,16 @@ onMounted(loadReviews)
 </script>
 
 <template>
-  <n-card class="admin-page-card">
-    <template #header>
-      <span class="page-title">审核队列</span>
-    </template>
-    <p class="ns-card-sub">待处理的应用申请 / 暂停 / 恢复 / 删除请求</p>
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h2 class="page-title">审核队列</h2>
+      <p class="page-sub">待处理的应用申请 / 暂停 / 恢复 / 删除请求</p>
+    </div>
+    <div class="page-actions">
+      <n-button size="small" :loading="reviewsLoading" @click="loadReviews">刷新</n-button>
+    </div>
+  </div>
 
     <n-spin :show="reviewsLoading">
       <n-empty
@@ -136,11 +141,4 @@ onMounted(loadReviews)
         </n-card>
       </div>
     </n-spin>
-  </n-card>
 </template>
-
-<style scoped>
-.admin-page-card {
-  border-radius: 6px;
-}
-</style>

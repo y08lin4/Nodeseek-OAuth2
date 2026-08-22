@@ -99,6 +99,13 @@ type User struct {
 	Blacklisted bool   `json:"blacklisted"` // 是否被服务端禁用
 }
 
+// AdminCred 运行时管理凭据（data/admin.json；password 用 AES-256-GCM 加密，非敏感 username 明文）。
+type AdminCred struct {
+	Username       string `json:"username"`
+	PasswordCipher string `json:"password_cipher"` // AES-GCM 密文（base64）
+	Nonce          string `json:"nonce"`           // AES-GCM nonce（base64）
+}
+
 // SMTPConfig SMTP 运行时配置（data/smtp.json；password 用 AES-256-GCM 加密，密文.nonce）。
 type SMTPConfig struct {
 	Host           string `json:"host"`
@@ -999,6 +1006,49 @@ func (s *Store) decryptCipher(cipher string) (string, error) {
 		return "", errors.New("密文格式错误")
 	}
 	plain, err := auth.Decrypt(s.key, parts[0], parts[1])
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
+}
+
+// ---- 管理凭据（admin.json） ----
+
+// GetAdminCred 读取运行时管理凭据；文件不存在返回 (nil, nil)。
+func (s *Store) GetAdminCred() (*AdminCred, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var c AdminCred
+	if err := s.readJSON("admin.json", &c); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &c, nil
+}
+
+// SetAdminCred 写入运行时管理凭据（password 用 AES-256-GCM 加密；username 明文）。
+func (s *Store) SetAdminCred(username, password string) (*AdminCred, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ct, nonce, err := auth.Encrypt(s.key, []byte(password))
+	if err != nil {
+		return nil, err
+	}
+	c := &AdminCred{Username: username, PasswordCipher: ct, Nonce: nonce}
+	if err := s.writeJSON("admin.json", c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// DecryptAdminPassword 解密管理凭据密码明文（登录/改密校验用）。
+func (s *Store) DecryptAdminPassword(c *AdminCred) (string, error) {
+	if c == nil || c.PasswordCipher == "" || c.Nonce == "" {
+		return "", nil
+	}
+	plain, err := auth.Decrypt(s.key, c.PasswordCipher, c.Nonce)
 	if err != nil {
 		return "", err
 	}
